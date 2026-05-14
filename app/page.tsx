@@ -7,49 +7,71 @@ import {
   doc,
   runTransaction,
 } from "firebase/firestore";
-import { db } from "@/firebase";
+import {
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+  ConfirmationResult,
+} from "firebase/auth";
+import { db, auth } from "@/firebase";
 
 const declaration = {
-  ru: `ДЕКЛАРАЦИЯ СОГЛАСИЯ С ПРАВИЛАМИ посещения и поведения в детском развлекательном комплексе ZIG ZAG и обработкой персональных данных.
+  ru: `ДЕКЛАРАЦИЯ
+СОГЛАСИЯ С ПРАВИЛАМИ
+посещения и поведения в детском развлекательном комплексе ZIG ZAG
+и обработкой персональных данных.
 
-Подписывая данную декларацию, подтверждаю, что я ознакомлен(а) и согласен(а) с условиями, изложенными в правилах посещения и поведения в детском парке аттракционов ZIG ZAG, доступных на информационном стенде и/или на официальном сайте www.zigzagkids.md.
+Подписывая данную декларацию согласия с правилами подтверждаю, что я ознакомлен(а) и согласен(а) с условиями, изложенными в правилах посещения и поведения в детском парке аттракционов ZIG ZAG, доступных для ознакомления на информационном стенде юридических лиц, работающим под брендом «ZIG ZAG» и/или на официальном сайте www.zigzagkids.md комплекса и являющихся неотъемлемой частью настоящей декларации согласия с правилами.
 
-Я ознакомился(-ась) с правилами парка ZIG ZAG и ознакомил(а) с ними своего несовершеннолетнего ребенка / детей, которым разрешаю находиться в детском развлекательном комплексе.
+Я ознакомился(ась) с правилами парка развлечений ZIG ZAG и ознакомил(а) с ними своего несовершеннолетнего ребенка (детей) / приемного ребенка (детей), которому (которым) разрешаю находиться в детском развлекательном комплексе и гарантирую, что мой несовершеннолетний ребенок (дети) / приемный ребенок (дети) будет (будут) соблюдать правила, а также принимаю на себя все риски, связанные с соблюдением этих правил и возникновением возможного ущерба.
 
-Подтверждаю, что ребенок / дети не страдают заболеваниями или состояниями, при которых они не могут играть и развлекаться. Если такие имеются, я проинформировал(а) администрацию ZIG ZAG.
+Подтверждаю, что мой несовершеннолетний ребенок (дети) / приемный ребенок (дети) не страдает(-ют) какими-либо заболеваниями, нет условий, при которых он/она/они не смог(-ла, -ли) бы играть и развлекаться, а если таковые имеются, я проинформировал(а) администрацию детского развлекательного комплекса ZIG ZAG и предоставил(а) все необходимые медицинские заключения.
 
-Я беру на себя ответственность за состояние здоровья, поведение ребенка / детей и возможный ущерб, причиненный ребенку / детям или третьим лицам.
+Я оценил(а) физические возможности своего ребенка (детей) / приемного ребенка (детей) и беру на себя всю ответственность в случае возможных нарушений здоровья.
 
-Также подтверждаю, что разрешаю ребенку / детям посещать ZIG ZAG без сопровождения при условии, что ребенку исполнилось 7 полных лет.
+Я выражаю свое согласие с тем, что в случае, если мой ребенок (дети) / приемный ребенок (дети) не соблюдает(-ют) правила, родители / опекуны несут полную ответственность, и понимаю, что детский развлекательный комплекс не несет ответственности за возникновение и возмещение какого-либо ущерба, возникшего в результате несоблюдения или ненадлежащего соблюдения правил, небрежного или опасного поведения моего ребенка (моих детей) / приемного ребенка (детей).
 
-В соответствии с Законом Республики Молдова №133 «О защите персональных данных» от 08.07.2011, я выражаю согласие на обработку моих персональных данных и данных ребенка / детей компанией F.P.C. GALGAN SRL.`,
+Принимаю на себя полную ответственность за ущерб, причиненный моему несовершеннолетнему ребенку (детям) / приемному ребенку (детям), или ущерб, причиненный третьим лицам моим несовершеннолетним ребенком (детьми) / приемным ребенком (детьми), подтверждаю, что разрешаю своему (своим) несовершеннолетнему(-ним) ребенку (детям) / приемному ребенку (детям) посещать детский развлекательный комплекс ZIG ZAG без присмотра сопровождающего при условии, что моему ребенку (детям) исполнилось 7 полных лет.
 
-  ro: `DECLARAȚIE DE ACORD CU REGULILE de vizitare și comportament în complexul de divertisment pentru copii ZIG ZAG și cu prelucrarea datelor cu caracter personal.
+В целях получения указанной информации, в соответствии с требованиями закона Республики Молдова №133 «О защите персональных данных» от 08.07.2011, подписывая настоящее Согласие, я также выражаю свое согласие на передачу моих персональных данных и персональных данных Ребенка/Детей для обработки F.P.C. GALGAN SRL, включая систематизацию, накопление, хранение, обезличивание, использование персональных данных, указанных в настоящей декларации.`,
 
-Prin semnarea acestei declarații confirm că am luat cunoștință și sunt de acord cu regulile de vizitare și comportament în parcul ZIG ZAG, disponibile pe panoul informativ și/sau pe site-ul oficial www.zigzagkids.md.
+  ro: `DECLARAȚIE
+DE ACORD CU REGULAMENTUL
+de vizitare și comportament în complexul de divertisment pentru copii ZIG ZAG
+și de prelucrare a datelor cu caracter personal.
 
-Confirm că am citit regulile parcului ZIG ZAG și le-am explicat copilului / copiilor mei minori, cărora le permit să se afle în complexul de divertisment.
+Prin semnarea prezentei declarații de acord cu regulamentul, confirm că am luat la cunoștință și sunt de acord cu condițiile expuse în Regulamentul de vizitare și comportament în parcul de atracții pentru copii ZIG ZAG, disponibil pentru consultare pe panoul informațional al persoanelor juridice care operează sub brandul „ZIG ZAG” și/sau pe site-ul oficial www.zigzagkids.md al complexului și care formează parte integrantă a prezentei declarații de acord cu regulamentul.
 
-Confirm că copilul / copiii mei nu suferă de boli sau afecțiuni care ar împiedica participarea la activități. Dacă există asemenea situații, am informat administrația ZIG ZAG.
+Eu m-am familiarizat cu regulamentul parcului de distracții ZIG ZAG și l-am prezentat copilului (copiilor) meu (mei) minor(i) / copilului (copiilor) adoptat(i), căruia (cărora) îi autorizez să se afle în complexul de divertisment pentru copii și garantez că copilul (copiii) meu (mei) minor(i) / copilul (copiii) adoptat(i) va (vor) respecta regulamentul, precum și îmi asum toate riscurile legate de respectarea acestui regulament și de producerea eventualelor daune.
 
-Îmi asum responsabilitatea pentru starea de sănătate, comportamentul copilului / copiilor și eventualele daune cauzate copilului / copiilor sau terților.
+Confirm că copilul (copiii) meu (mei) minor(i) / copilul (copiii) adoptat(i) nu suferă de boli, nu există condiții în care el/ea/ei să nu poată juca și se distra, iar dacă asemenea condiții există, am informat administrația complexului de divertisment pentru copii ZIG ZAG și am furnizat toate concluziile medicale necesare.
 
-Confirm că permit copilului / copiilor să viziteze ZIG ZAG fără însoțitor, cu condiția ca acesta / aceștia să fi împlinit vârsta de 7 ani.
+Am evaluat capacitățile fizice ale copilului (copiilor) meu (mei) / copilului (copiilor) adoptat(i) și îmi asum întreaga responsabilitate în cazul eventualelor afectări ale sănătății.
 
-În conformitate cu Legea Republicii Moldova nr. 133 privind protecția datelor cu caracter personal din 08.07.2011, îmi exprim acordul pentru prelucrarea datelor mele personale și ale copilului / copiilor de către F.P.C. GALGAN SRL.`,
+Îmi exprim acordul că, în cazul în care copilul (copiii) meu (mei) / copilul (copiii) adoptat(i) nu respectă regulamentul, părinții / tutorii au întreaga responsabilitate și înțeleg că complexul de divertisment pentru copii nu este responsabil pentru producerea și despăgubirea oricăror daune rezultate din nerespectarea sau respectarea necorespunzătoare a regulamentului, din comportamentul neglijent sau periculos al copilului (copiilor) meu (mei) / copilului (copiilor) adoptat(i).
+
+Îmi asum întreaga responsabilitate pentru daunele produse copilului (copiilor) meu (mei) minor(i) / copilului (copiilor) adoptat(i), sau daunele produse terților de către copilul (copiii) meu (mei) minor(i) / copilul (copiii) adoptat(i), confirm că îmi autorizez copilul (copiii) minor(i) / copilul (copiii) adoptat(i) să viziteze complexul de divertisment pentru copii ZIG ZAG fără supraveghere/însoțitor, cu condiția ca copilul (copiii) meu (mei) să aibă vârsta de 7 ani.
+
+În conformitate cu prevederile Legii Republicii Moldova nr. 133 din 08.07.2011 privind protecția datelor cu caracter personal, prin semnarea prezentei Declarații de acord, îmi exprim consimțământul pentru transmiterea datelor mele cu caracter personal și a datelor cu caracter personal ale Copilului/Copiilor în vederea prelucrării de către F.P.C. GALGAN SRL, inclusiv sistematizarea, acumularea, păstrarea, anonimizarea și utilizarea datelor cu caracter personal indicate în prezenta declarație.`,
 };
 
 const text = {
   ru: {
     subtitle: "Регистрация посетителя",
-    parent: "Имя фамилия родителя",
-    phone: "Телефон",
+    parent: "Имя и фамилия родителя латиницей",
+    phone: "Телефон в формате +373...",
     email: "Email",
-    childName: "Имя ребёнка",
+    childName: "Имя ребёнка латиницей",
     childAge: "Возраст",
     child1: "Ребёнок 1",
     child2: "Ребёнок 2",
     child3: "Ребёнок 3",
+    sendCode: "Отправить SMS-код",
+    code: "Введите SMS-код",
+    verifyCode: "Подтвердить код",
+    phoneVerified: "✅ Телефон подтверждён",
+    codeSent: "✅ Код отправлен",
+    codeError: "❌ Ошибка SMS / неверный номер",
+    wrongCode: "❌ Неверный код",
     next: "Продолжить",
     back: "Назад",
     declarationTitle: "Декларация согласия",
@@ -58,6 +80,9 @@ const text = {
     clear: "Очистить подпись",
     save: "Подписать и сохранить",
     fill: "❌ Заполните данные родителя и минимум одного ребёнка",
+    latinParent: "❌ Имя родителя должно быть только латиницей, как в паспорте",
+    latinChildren: "❌ Имена детей должны быть только латиницей, как в паспорте",
+    phoneNeed: "❌ Подтвердите номер телефона",
     sign: "❌ Поставьте подпись родителя",
     agreeError: "❌ Подтвердите согласие с декларацией",
     saving: "⏳ Сохраняю...",
@@ -66,14 +91,21 @@ const text = {
   },
   ro: {
     subtitle: "Înregistrarea vizitatorului",
-    parent: "Numele și prenumele părintelui",
-    phone: "Telefon",
+    parent: "Numele părintelui cu litere latine",
+    phone: "Telefon în format +373...",
     email: "Email",
-    childName: "Numele copilului",
+    childName: "Numele copilului cu litere latine",
     childAge: "Vârsta",
     child1: "Copilul 1",
     child2: "Copilul 2",
     child3: "Copilul 3",
+    sendCode: "Trimite cod SMS",
+    code: "Introduceți codul SMS",
+    verifyCode: "Confirmă codul",
+    phoneVerified: "✅ Telefon confirmat",
+    codeSent: "✅ Cod trimis",
+    codeError: "❌ Eroare SMS / număr greșit",
+    wrongCode: "❌ Cod greșit",
     next: "Continuă",
     back: "Înapoi",
     declarationTitle: "Declarație de acord",
@@ -82,6 +114,9 @@ const text = {
     clear: "Șterge semnătura",
     save: "Semnează și salvează",
     fill: "❌ Completați datele părintelui și cel puțin un copil",
+    latinParent: "❌ Numele părintelui trebuie scris doar cu litere latine",
+    latinChildren: "❌ Numele copiilor trebuie scrise doar cu litere latine",
+    phoneNeed: "❌ Confirmați numărul de telefon",
     sign: "❌ Puneți semnătura părintelui",
     agreeError: "❌ Confirmați acordul cu declarația",
     saving: "⏳ Se salvează...",
@@ -96,7 +131,7 @@ export default function Home() {
   const t = text[lang];
 
   const [parentName, setParentName] = useState("");
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState("+373");
   const [email, setEmail] = useState("");
 
   const [children, setChildren] = useState([
@@ -108,15 +143,19 @@ export default function Home() {
   const [agree, setAgree] = useState(false);
   const [message, setMessage] = useState("");
 
+  const [smsCode, setSmsCode] = useState("");
+  const [phoneVerified, setPhoneVerified] = useState(false);
+  const [sendingCode, setSendingCode] = useState(false);
+  const [confirmationResult, setConfirmationResult] =
+    useState<ConfirmationResult | null>(null);
+
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const isDrawing = useRef(false);
   const [hasSignature, setHasSignature] = useState(false);
 
-  const updateChild = (
-    index: number,
-    field: "name" | "age",
-    value: string
-  ) => {
+  const latinRegex = /^[A-Za-z\s-]+$/;
+
+  const updateChild = (index: number, field: "name" | "age", value: string) => {
     const updated = [...children];
     updated[index][field] = value;
     setChildren(updated);
@@ -125,6 +164,52 @@ export default function Home() {
   const validChildren = children.filter(
     (child) => child.name.trim() && child.age.trim()
   );
+
+  const sendSMSCode = async () => {
+    try {
+      setSendingCode(true);
+      setMessage("");
+
+      if (!phone || phone.length < 8) {
+        setMessage(t.codeError);
+        return;
+      }
+
+      if (!(window as any).recaptchaVerifier) {
+        (window as any).recaptchaVerifier = new RecaptchaVerifier(
+          auth,
+          "recaptcha-container",
+          { size: "invisible" }
+        );
+      }
+
+      const appVerifier = (window as any).recaptchaVerifier;
+
+      const result = await signInWithPhoneNumber(auth, phone, appVerifier);
+
+      setConfirmationResult(result);
+      setMessage(t.codeSent);
+    } catch (error) {
+      console.error(error);
+      setMessage(t.codeError);
+    } finally {
+      setSendingCode(false);
+    }
+  };
+
+  const verifySMSCode = async () => {
+    try {
+      if (!confirmationResult) return;
+
+      await confirmationResult.confirm(smsCode);
+
+      setPhoneVerified(true);
+      setMessage(t.phoneVerified);
+    } catch (error) {
+      console.error(error);
+      setMessage(t.wrongCode);
+    }
+  };
 
   const getTouchPosition = (e: React.TouchEvent<HTMLCanvasElement>) => {
     const touch = e.touches[0];
@@ -182,6 +267,23 @@ export default function Home() {
       return;
     }
 
+    if (!latinRegex.test(parentName.trim())) {
+      setMessage(t.latinParent);
+      return;
+    }
+
+    for (const child of validChildren) {
+      if (!latinRegex.test(child.name.trim())) {
+        setMessage(t.latinChildren);
+        return;
+      }
+    }
+
+    if (!phoneVerified) {
+      setMessage(t.phoneNeed);
+      return;
+    }
+
     setStep(2);
   };
 
@@ -228,10 +330,14 @@ export default function Home() {
 
       await addDoc(collection(db, "visitors"), {
         declarationNumber,
-        parentName,
+        parentName: parentName.trim().toUpperCase(),
         phone,
+        phoneVerified: true,
         email,
-        children: validChildren,
+        children: validChildren.map((child) => ({
+          name: child.name.trim().toUpperCase(),
+          age: child.age.trim(),
+        })),
         language: lang,
         declarationText: declaration[lang],
         agreed: true,
@@ -242,7 +348,7 @@ export default function Home() {
       setMessage(`${t.success} № ${declarationNumber}`);
 
       setParentName("");
-      setPhone("");
+      setPhone("+373");
       setEmail("");
       setChildren([
         { name: "", age: "" },
@@ -250,6 +356,9 @@ export default function Home() {
         { name: "", age: "" },
       ]);
       setAgree(false);
+      setSmsCode("");
+      setPhoneVerified(false);
+      setConfirmationResult(null);
       clearSignature();
       setStep(1);
     } catch (error) {
@@ -317,9 +426,54 @@ export default function Home() {
               type="tel"
               placeholder={t.phone}
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => {
+                setPhone(e.target.value);
+                setPhoneVerified(false);
+                setConfirmationResult(null);
+              }}
               className="p-5 md:p-6 rounded-2xl border-2 border-gray-200 text-2xl md:text-3xl text-black outline-none focus:border-blue-500"
             />
+
+            <div className="grid gap-3">
+              {!phoneVerified && (
+                <button
+                  type="button"
+                  onClick={sendSMSCode}
+                  disabled={sendingCode || !phone}
+                  className="bg-yellow-400 text-black p-4 rounded-2xl text-2xl font-black active:scale-95 disabled:opacity-50"
+                >
+                  {sendingCode ? "..." : t.sendCode}
+                </button>
+              )}
+
+              {confirmationResult && !phoneVerified && (
+                <>
+                  <input
+                    type="text"
+                    placeholder={t.code}
+                    value={smsCode}
+                    onChange={(e) => setSmsCode(e.target.value)}
+                    className="p-5 rounded-2xl border-2 border-gray-200 text-2xl text-black outline-none focus:border-green-500"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={verifySMSCode}
+                    className="bg-green-600 text-white p-4 rounded-2xl text-2xl font-black active:scale-95"
+                  >
+                    {t.verifyCode}
+                  </button>
+                </>
+              )}
+
+              {phoneVerified && (
+                <div className="p-4 rounded-2xl bg-green-100 text-green-800 text-2xl text-center font-bold">
+                  {t.phoneVerified}
+                </div>
+              )}
+
+              <div id="recaptcha-container"></div>
+            </div>
 
             <input
               type="email"
