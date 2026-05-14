@@ -6,13 +6,10 @@ import {
   addDoc,
   doc,
   runTransaction,
+  getDoc,
+  setDoc,
 } from "firebase/firestore";
-import {
-  RecaptchaVerifier,
-  signInWithPhoneNumber,
-  ConfirmationResult,
-} from "firebase/auth";
-import { db, auth } from "@/firebase";
+import { db } from "@/firebase";
 
 const declaration = {
   ru: `ДЕКЛАРАЦИЯ
@@ -22,17 +19,17 @@ const declaration = {
 
 Подписывая данную декларацию согласия с правилами подтверждаю, что я ознакомлен(а) и согласен(а) с условиями, изложенными в правилах посещения и поведения в детском парке аттракционов ZIG ZAG, доступных для ознакомления на информационном стенде юридических лиц, работающим под брендом «ZIG ZAG» и/или на официальном сайте www.zigzagkids.md комплекса и являющихся неотъемлемой частью настоящей декларации согласия с правилами.
 
-Я ознакомился(ась) с правилами парка развлечений ZIG ZAG и ознакомил(а) с ними своего несовершеннолетнего ребенка (детей) / приемного ребенка (детей), которому (которым) разрешаю находиться в детском развлекательном комплексе и гарантирую, что мой несовершеннолетний ребенок (дети) / приемный ребенок (дети) будет (будут) соблюдать правила, а также принимаю на себя все риски, связанные с соблюдением этих правил и возникновением возможного ущерба.
+Я, ознакомился с правилами парка развлечений ZIG ZAG и ознакомил(а) с ними своего несовершеннолетнего ребенка (детей) / приемного ребенка (детей), которому (которым) разрешаю находиться в детском развлекательном комплексе и гарантирую, что мой несовершеннолетний ребенок (дети) / приемный ребенок (дети) будет (будут) соблюдать правила, а также принимаю на себя все риски, связанные с соблюдением этих правил и возникновением возможного ущерба.
 
 Подтверждаю, что мой несовершеннолетний ребенок (дети) / приемный ребенок (дети) не страдает(-ют) какими-либо заболеваниями, нет условий, при которых он/она/они не смог(-ла, -ли) бы играть и развлекаться, а если таковые имеются, я проинформировал(а) администрацию детского развлекательного комплекса ZIG ZAG и предоставил(а) все необходимые медицинские заключения.
 
-Я оценил(а) физические возможности своего ребенка (детей) / приемного ребенка (детей) и беру на себя всю ответственность в случае возможных нарушений здоровья.
+Я оценил(-а) физические возможности своего ребенка (детей) / приемного ребенка (детей) и беру на себя всю ответственность в случае возможных нарушений здоровья.
 
 Я выражаю свое согласие с тем, что в случае, если мой ребенок (дети) / приемный ребенок (дети) не соблюдает(-ют) правила, родители / опекуны несут полную ответственность, и понимаю, что детский развлекательный комплекс не несет ответственности за возникновение и возмещение какого-либо ущерба, возникшего в результате несоблюдения или ненадлежащего соблюдения правил, небрежного или опасного поведения моего ребенка (моих детей) / приемного ребенка (детей).
 
 Принимаю на себя полную ответственность за ущерб, причиненный моему несовершеннолетнему ребенку (детям) / приемному ребенку (детям), или ущерб, причиненный третьим лицам моим несовершеннолетним ребенком (детьми) / приемным ребенком (детьми), подтверждаю, что разрешаю своему (своим) несовершеннолетнему(-ним) ребенку (детям) / приемному ребенку (детям) посещать детский развлекательный комплекс ZIG ZAG без присмотра сопровождающего при условии, что моему ребенку (детям) исполнилось 7 полных лет.
 
-В целях получения указанной информации, в соответствии с требованиями закона Республики Молдова №133 «О защите персональных данных» от 08.07.2011, подписывая настоящее Согласие, я также выражаю свое согласие на передачу моих персональных данных и персональных данных Ребенка/Детей для обработки F.P.C. GALGAN SRL, включая систематизацию, накопление, хранение, обезличивание, использование персональных данных, указанных в настоящей декларации.`,
+В целях получения указанной информации, в соответствии с требованиями закона Республики Молдова №133 «О защите персональных данных» от 08.07.2011, подписывая настоящее Согласие я также выражаю свое согласие на передачу моих персональных данных и персональных данных Ребенка/Детей для обработки F.P.C. GALGAN SRL систематизацию, накопление, хранение, обезличивание, использование персональных данных указанных в настоящей декларации.`,
 
   ro: `DECLARAȚIE
 DE ACORD CU REGULAMENTUL
@@ -41,7 +38,7 @@ de vizitare și comportament în complexul de divertisment pentru copii ZIG ZAG
 
 Prin semnarea prezentei declarații de acord cu regulamentul, confirm că am luat la cunoștință și sunt de acord cu condițiile expuse în Regulamentul de vizitare și comportament în parcul de atracții pentru copii ZIG ZAG, disponibil pentru consultare pe panoul informațional al persoanelor juridice care operează sub brandul „ZIG ZAG” și/sau pe site-ul oficial www.zigzagkids.md al complexului și care formează parte integrantă a prezentei declarații de acord cu regulamentul.
 
-Eu m-am familiarizat cu regulamentul parcului de distracții ZIG ZAG și l-am prezentat copilului (copiilor) meu (mei) minor(i) / copilului (copiilor) adoptat(i), căruia (cărora) îi autorizez să se afle în complexul de divertisment pentru copii și garantez că copilul (copiii) meu (mei) minor(i) / copilul (copiii) adoptat(i) va (vor) respecta regulamentul, precum și îmi asum toate riscurile legate de respectarea acestui regulament și de producerea eventualelor daune.
+Eu, m-am familiarizat cu regulamentul parcului de distracții ZIG ZAG și l-am prezentat copilului (copiilor) meu (mei) minor(i) / copilului (copiilor) adoptat(i), căruia (cărora) îi autorizez să se afle în complexul de divertisment pentru copii și garantez că copilul (copiii) meu (mei) minor(i) / copilul (copiii) adoptat(i) va (vor) respecta regulamentul, precum și îmi asum toate riscurile legate de respectarea acestui regulament și de producerea eventualelor daune.
 
 Confirm că copilul (copiii) meu (mei) minor(i) / copilul (copiii) adoptat(i) nu suferă de boli, nu există condiții în care el/ea/ei să nu poată juca și se distra, iar dacă asemenea condiții există, am informat administrația complexului de divertisment pentru copii ZIG ZAG și am furnizat toate concluziile medicale necesare.
 
@@ -49,29 +46,25 @@ Am evaluat capacitățile fizice ale copilului (copiilor) meu (mei) / copilului 
 
 Îmi exprim acordul că, în cazul în care copilul (copiii) meu (mei) / copilul (copiii) adoptat(i) nu respectă regulamentul, părinții / tutorii au întreaga responsabilitate și înțeleg că complexul de divertisment pentru copii nu este responsabil pentru producerea și despăgubirea oricăror daune rezultate din nerespectarea sau respectarea necorespunzătoare a regulamentului, din comportamentul neglijent sau periculos al copilului (copiilor) meu (mei) / copilului (copiilor) adoptat(i).
 
-Îmi asum întreaga responsabilitate pentru daunele produse copilului (copiilor) meu (mei) minor(i) / copilului (copiilor) adoptat(i), sau daunele produse terților de către copilul (copiii) meu (mei) minor(i) / copilul (copiii) adoptat(i), confirm că îmi autorizez copilul (copiii) minor(i) / copilul (copiii) adoptat(i) să viziteze complexul de divertisment pentru copii ZIG ZAG fără supraveghere/însoțitor, cu condiția ca copilul (copiii) meu (mei) să aibă vârsta de 7 ani.
+Îmi asum întreaga responsabilitate pentru daunele produse copilului (copiilor) meu (mei) minor(i) / copilului (copiilor) adoptat(i), sau daunele produse terților de către copilul (copiii) meu (mei) minor(i) / copilul (copiii) adoptat(i), confirm că îmi autorizez copilul (copiii) minor(i) / copilul (copiii) adoptat(i) să viziteze complexul de divertisment pentru copii ZIG ZAG fără supraveghere, însoțitor, cu condiția ca copilul (copiii) meu (mei) să aibă vârsta de 7 ani.
 
-În conformitate cu prevederile Legii Republicii Moldova nr. 133 din 08.07.2011 privind protecția datelor cu caracter personal, prin semnarea prezentei Declarații de acord, îmi exprim consimțământul pentru transmiterea datelor mele cu caracter personal și a datelor cu caracter personal ale Copilului/Copiilor în vederea prelucrării de către F.P.C. GALGAN SRL, inclusiv sistematizarea, acumularea, păstrarea, anonimizarea și utilizarea datelor cu caracter personal indicate în prezenta declarație.`,
+În vederea obținerii informațiilor menționate, în conformitate cu prevederile Legii Republicii Moldova nr.133 din 08.07.2011 „privind protecția datelor cu caracter personal”, prin semnarea prezentei Declarații de acord, îmi exprim de asemenea consimțământul pentru transmiterea datelor mele cu caracter personal și a datelor cu caracter personal ale Copilului/Copiilor în vederea prelucrării de către F.P.C. GALGAN SRL, inclusiv sistematizarea, acumularea, păstrarea, anonimizarea, utilizarea datelor cu caracter personal indicate în prezenta declarație.`,
 };
 
 const text = {
   ru: {
     subtitle: "Регистрация посетителя",
     parent: "Имя и фамилия родителя латиницей",
-    phone: "Телефон в формате +373...",
+    phone: "Телефон (+373...)",
     email: "Email",
     childName: "Имя ребёнка латиницей",
     childAge: "Возраст",
     child1: "Ребёнок 1",
     child2: "Ребёнок 2",
     child3: "Ребёнок 3",
-    sendCode: "Отправить SMS-код",
-    code: "Введите SMS-код",
-    verifyCode: "Подтвердить код",
-    phoneVerified: "✅ Телефон подтверждён",
-    codeSent: "✅ Код отправлен",
-    codeError: "❌ Ошибка SMS / неверный номер",
-    wrongCode: "❌ Неверный код",
+    oldClient: "✅ Постоянный клиент найден. Данные загружены",
+    newClient: "ℹ️ Новый клиент",
+    checkClient: "Проверить наличие Family Pass",
     next: "Продолжить",
     back: "Назад",
     declarationTitle: "Декларация согласия",
@@ -80,11 +73,10 @@ const text = {
     clear: "Очистить подпись",
     save: "Подписать и сохранить",
     fill: "❌ Заполните данные родителя и минимум одного ребёнка",
-    latinParent: "❌ Имя родителя должно быть только латиницей, как в паспорте",
-    latinChildren: "❌ Имена детей должны быть только латиницей, как в паспорте",
-    phoneNeed: "❌ Подтвердите номер телефона",
+    latinParent: "❌ Имя родителя должно быть только латиницей",
+    latinChildren: "❌ Имена детей должны быть только латиницей",
     sign: "❌ Поставьте подпись родителя",
-    agreeError: "❌ Подтвердите согласие с декларацией",
+    agreeError: "❌ Подтвердите согласие",
     saving: "⏳ Сохраняю...",
     success: "✅ Регистрация успешно сохранена!",
     error: "❌ Ошибка при сохранении",
@@ -92,20 +84,16 @@ const text = {
   ro: {
     subtitle: "Înregistrarea vizitatorului",
     parent: "Numele părintelui cu litere latine",
-    phone: "Telefon în format +373...",
+    phone: "Telefon (+373...)",
     email: "Email",
     childName: "Numele copilului cu litere latine",
     childAge: "Vârsta",
     child1: "Copilul 1",
     child2: "Copilul 2",
     child3: "Copilul 3",
-    sendCode: "Trimite cod SMS",
-    code: "Introduceți codul SMS",
-    verifyCode: "Confirmă codul",
-    phoneVerified: "✅ Telefon confirmat",
-    codeSent: "✅ Cod trimis",
-    codeError: "❌ Eroare SMS / număr greșit",
-    wrongCode: "❌ Cod greșit",
+    oldClient: "✅ Client permanent găsit. Datele au fost încărcate",
+    newClient: "ℹ️ Client nou",
+    checkClient: "Verifică prezența Family Pass",
     next: "Continuă",
     back: "Înapoi",
     declarationTitle: "Declarație de acord",
@@ -114,11 +102,10 @@ const text = {
     clear: "Șterge semnătura",
     save: "Semnează și salvează",
     fill: "❌ Completați datele părintelui și cel puțin un copil",
-    latinParent: "❌ Numele părintelui trebuie scris doar cu litere latine",
-    latinChildren: "❌ Numele copiilor trebuie scrise doar cu litere latine",
-    phoneNeed: "❌ Confirmați numărul de telefon",
-    sign: "❌ Puneți semnătura părintelui",
-    agreeError: "❌ Confirmați acordul cu declarația",
+    latinParent: "❌ Numele părintelui trebuie scris cu litere latine",
+    latinChildren: "❌ Numele copiilor trebuie scrise cu litere latine",
+    sign: "❌ Puneți semnătura",
+    agreeError: "❌ Confirmați acordul",
     saving: "⏳ Se salvează...",
     success: "✅ Înregistrarea a fost salvată!",
     error: "❌ Eroare la salvare",
@@ -133,6 +120,7 @@ export default function Home() {
   const [parentName, setParentName] = useState("");
   const [phone, setPhone] = useState("+373");
   const [email, setEmail] = useState("");
+  const [familyId, setFamilyId] = useState("");
 
   const [children, setChildren] = useState([
     { name: "", age: "" },
@@ -140,20 +128,22 @@ export default function Home() {
     { name: "", age: "" },
   ]);
 
-  const [agree, setAgree] = useState(false);
   const [message, setMessage] = useState("");
-
+  const [agree, setAgree] = useState(false);
   const [smsCode, setSmsCode] = useState("");
-  const [phoneVerified, setPhoneVerified] = useState(false);
-  const [sendingCode, setSendingCode] = useState(false);
-  const [confirmationResult, setConfirmationResult] =
-    useState<ConfirmationResult | null>(null);
+const [phoneVerified, setPhoneVerified] = useState(false);
+const [codeSent, setCodeSent] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const isDrawing = useRef(false);
   const [hasSignature, setHasSignature] = useState(false);
 
   const latinRegex = /^[A-Za-z\s-]+$/;
+  const cleanPhone = phone.replace(/\D/g, "");
+
+  const validChildren = children.filter(
+    (child) => child.name.trim() && child.age.trim()
+  );
 
   const updateChild = (index: number, field: "name" | "age", value: string) => {
     const updated = [...children];
@@ -161,54 +151,142 @@ export default function Home() {
     setChildren(updated);
   };
 
-  const validChildren = children.filter(
-    (child) => child.name.trim() && child.age.trim()
-  );
+  const checkFamily = async () => {
+    const ref = doc(db, "families", cleanPhone);
+    const snap = await getDoc(ref);
 
-  const sendSMSCode = async () => {
-    try {
-      setSendingCode(true);
-      setMessage("");
+    if (snap.exists()) {
+      const data: any = snap.data();
 
-      if (!phone || phone.length < 8) {
-        setMessage(t.codeError);
-        return;
+      setFamilyId(data.familyId || "");
+      setParentName(data.parentName || "");
+      setEmail(data.email || "");
+
+      if (data.children?.length) {
+        setChildren([
+          data.children[0] || { name: "", age: "" },
+          data.children[1] || { name: "", age: "" },
+          data.children[2] || { name: "", age: "" },
+        ]);
       }
 
-      if (!(window as any).recaptchaVerifier) {
-        (window as any).recaptchaVerifier = new RecaptchaVerifier(
-          auth,
-          "recaptcha-container",
-          { size: "invisible" }
-        );
-      }
-
-      const appVerifier = (window as any).recaptchaVerifier;
-
-      const result = await signInWithPhoneNumber(auth, phone, appVerifier);
-
-      setConfirmationResult(result);
-      setMessage(t.codeSent);
-    } catch (error) {
-      console.error(error);
-      setMessage(t.codeError);
-    } finally {
-      setSendingCode(false);
+      setMessage(t.oldClient);
+    } else {
+      setFamilyId("");
+      setMessage(t.newClient);
     }
   };
 
-  const verifySMSCode = async () => {
-    try {
-      if (!confirmationResult) return;
+  const createDeclarationNumber = async () => {
+    const counterRef = doc(db, "counters", "declarations");
 
-      await confirmationResult.confirm(smsCode);
+    return await runTransaction(db, async (transaction) => {
+      const counterDoc = await transaction.get(counterRef);
+      const currentNumber = counterDoc.exists()
+        ? counterDoc.data().number || 0
+        : 0;
 
-      setPhoneVerified(true);
-      setMessage(t.phoneVerified);
-    } catch (error) {
-      console.error(error);
-      setMessage(t.wrongCode);
+      const nextNumber = currentNumber + 1;
+      transaction.set(counterRef, { number: nextNumber }, { merge: true });
+
+      return `ZZ-${new Date().getFullYear()}-${String(nextNumber).padStart(
+        6,
+        "0"
+      )}`;
+    });
+  };
+
+  const createFamilyId = async () => {
+    if (familyId) return familyId;
+
+    const counterRef = doc(db, "counters", "families");
+
+    return await runTransaction(db, async (transaction) => {
+      const counterDoc = await transaction.get(counterRef);
+      const currentNumber = counterDoc.exists()
+        ? counterDoc.data().number || 0
+        : 0;
+
+      const nextNumber = currentNumber + 1;
+      transaction.set(counterRef, { number: nextNumber }, { merge: true });
+
+      return `ZZ-FAMILY-${String(nextNumber).padStart(6, "0")}`;
+    });
+  };
+const sendSMSCode = async () => {
+  try {
+    setMessage("");
+
+    const response = await fetch("/api/send-sms-code", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ phone }),
+    });
+
+    if (!response.ok) throw new Error();
+
+    setCodeSent(true);
+    setMessage(lang === "ru" ? "✅ SMS-код отправлен" : "✅ Cod SMS trimis");
+  } catch {
+    setMessage(lang === "ru" ? "❌ Ошибка отправки SMS" : "❌ Eroare SMS");
+  }
+};
+
+const verifySMSCode = async () => {
+  try {
+    setMessage("");
+
+    const response = await fetch("/api/verify-sms-code", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        phone,
+        code: smsCode,
+      }),
+    });
+
+    if (!response.ok) throw new Error();
+
+    setPhoneVerified(true);
+    setMessage(lang === "ru" ? "✅ Телефон подтверждён" : "✅ Telefon confirmat");
+
+    await checkFamily();
+  } catch {
+    setMessage(lang === "ru" ? "❌ Неверный код" : "❌ Cod greșit");
+  }
+};
+  const goNext = () => {
+    setMessage("");
+
+    if (!parentName || !phone || !email || validChildren.length === 0) {
+      setMessage(t.fill);
+      return;
     }
+
+    if (!latinRegex.test(parentName.trim())) {
+      setMessage(t.latinParent);
+      return;
+    }
+
+    for (const child of validChildren) {
+      if (!latinRegex.test(child.name.trim())) {
+        setMessage(t.latinChildren);
+        return;
+      }
+    }
+if (!phoneVerified) {
+  setMessage(
+    lang === "ru"
+      ? "❌ Подтвердите номер телефона"
+      : "❌ Confirmați numărul de telefon"
+  );
+  return;
+}
+    setStep(2);
   };
 
   const getTouchPosition = (e: React.TouchEvent<HTMLCanvasElement>) => {
@@ -259,58 +337,6 @@ export default function Home() {
     setHasSignature(false);
   };
 
-  const goNext = () => {
-    setMessage("");
-
-    if (!parentName || !phone || !email || validChildren.length === 0) {
-      setMessage(t.fill);
-      return;
-    }
-
-    if (!latinRegex.test(parentName.trim())) {
-      setMessage(t.latinParent);
-      return;
-    }
-
-    for (const child of validChildren) {
-      if (!latinRegex.test(child.name.trim())) {
-        setMessage(t.latinChildren);
-        return;
-      }
-    }
-
-    if (!phoneVerified) {
-      setMessage(t.phoneNeed);
-      return;
-    }
-
-    setStep(2);
-  };
-
-  const createDeclarationNumber = async () => {
-    const counterRef = doc(db, "counters", "declarations");
-
-    const declarationNumber = await runTransaction(db, async (transaction) => {
-      const counterDoc = await transaction.get(counterRef);
-
-      let currentNumber = 0;
-
-      if (counterDoc.exists()) {
-        currentNumber = counterDoc.data().number || 0;
-      }
-
-      const nextNumber = currentNumber + 1;
-
-      transaction.set(counterRef, { number: nextNumber }, { merge: true });
-
-      const year = new Date().getFullYear();
-
-      return `ZZ-${year}-${String(nextNumber).padStart(6, "0")}`;
-    });
-
-    return declarationNumber;
-  };
-
   const saveData = async () => {
     try {
       setMessage(t.saving);
@@ -325,19 +351,23 @@ export default function Home() {
         return;
       }
 
-      const signature = canvasRef.current!.toDataURL("image/png");
       const declarationNumber = await createDeclarationNumber();
+      const newFamilyId = await createFamilyId();
+      const signature = canvasRef.current!.toDataURL("image/png");
+
+      const savedChildren = validChildren.map((child) => ({
+        name: child.name.trim().toUpperCase(),
+        age: child.age.trim(),
+      }));
 
       await addDoc(collection(db, "visitors"), {
         declarationNumber,
+        familyId: newFamilyId,
         parentName: parentName.trim().toUpperCase(),
         phone,
         phoneVerified: true,
         email,
-        children: validChildren.map((child) => ({
-          name: child.name.trim().toUpperCase(),
-          age: child.age.trim(),
-        })),
+        children: savedChildren,
         language: lang,
         declarationText: declaration[lang],
         agreed: true,
@@ -345,20 +375,32 @@ export default function Home() {
         createdAt: new Date(),
       });
 
+      await setDoc(
+        doc(db, "families", cleanPhone),
+        {
+          familyId: newFamilyId,
+          parentName: parentName.trim().toUpperCase(),
+          phone,
+          email,
+          children: savedChildren,
+          updatedAt: new Date(),
+          createdAt: new Date(),
+        },
+        { merge: true }
+      );
+
       setMessage(`${t.success} № ${declarationNumber}`);
 
       setParentName("");
       setPhone("+373");
       setEmail("");
+      setFamilyId("");
       setChildren([
         { name: "", age: "" },
         { name: "", age: "" },
         { name: "", age: "" },
       ]);
       setAgree(false);
-      setSmsCode("");
-      setPhoneVerified(false);
-      setConfirmationResult(null);
       clearSignature();
       setStep(1);
     } catch (error) {
@@ -406,11 +448,9 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="text-center mb-7">
-          <p className="text-2xl md:text-3xl text-gray-500 mt-2">
-            {step === 1 ? t.subtitle : t.declarationTitle}
-          </p>
-        </div>
+        <p className="text-2xl md:text-3xl text-gray-500 text-center mb-7">
+          {step === 1 ? t.subtitle : t.declarationTitle}
+        </p>
 
         {step === 1 && (
           <div className="grid gap-4">
@@ -419,74 +459,78 @@ export default function Home() {
               placeholder={t.parent}
               value={parentName}
               onChange={(e) => setParentName(e.target.value)}
-              className="p-5 md:p-6 rounded-2xl border-2 border-gray-200 text-2xl md:text-3xl text-black outline-none focus:border-blue-500"
+              className="p-5 rounded-2xl border-2 text-2xl text-black"
             />
 
             <input
               type="tel"
               placeholder={t.phone}
               value={phone}
-              onChange={(e) => {
-                setPhone(e.target.value);
-                setPhoneVerified(false);
-                setConfirmationResult(null);
-              }}
-              className="p-5 md:p-6 rounded-2xl border-2 border-gray-200 text-2xl md:text-3xl text-black outline-none focus:border-blue-500"
+              onChange={(e) => setPhone(e.target.value)}
+              className="p-5 rounded-2xl border-2 text-2xl text-black"
             />
+            {!phoneVerified && (
+  <button
+    type="button"
+    onClick={sendSMSCode}
+    className="bg-yellow-400 text-black p-5 rounded-2xl text-2xl font-black"
+  >
+    {lang === "ru" ? "Отправить SMS-код" : "Trimite cod SMS"}
+  </button>
+)}
 
-            <div className="grid gap-3">
-              {!phoneVerified && (
-                <button
-                  type="button"
-                  onClick={sendSMSCode}
-                  disabled={sendingCode || !phone}
-                  className="bg-yellow-400 text-black p-4 rounded-2xl text-2xl font-black active:scale-95 disabled:opacity-50"
-                >
-                  {sendingCode ? "..." : t.sendCode}
-                </button>
-              )}
+{codeSent && !phoneVerified && (
+  <>
+    <input
+      type="text"
+      placeholder={lang === "ru" ? "Введите SMS-код" : "Introduceți codul SMS"}
+      value={smsCode}
+      onChange={(e) => setSmsCode(e.target.value)}
+      className="p-5 rounded-2xl border-2 text-2xl text-black"
+    />
 
-              {confirmationResult && !phoneVerified && (
-                <>
-                  <input
-                    type="text"
-                    placeholder={t.code}
-                    value={smsCode}
-                    onChange={(e) => setSmsCode(e.target.value)}
-                    className="p-5 rounded-2xl border-2 border-gray-200 text-2xl text-black outline-none focus:border-green-500"
-                  />
+    <button
+      type="button"
+      onClick={verifySMSCode}
+      className="bg-green-600 text-white p-5 rounded-2xl text-2xl font-black"
+    >
+      {lang === "ru" ? "Подтвердить код" : "Confirmă codul"}
+    </button>
+  </>
+)}
 
-                  <button
-                    type="button"
-                    onClick={verifySMSCode}
-                    className="bg-green-600 text-white p-4 rounded-2xl text-2xl font-black active:scale-95"
-                  >
-                    {t.verifyCode}
-                  </button>
-                </>
-              )}
+{phoneVerified && (
+  <div className="bg-green-100 text-green-800 p-5 rounded-2xl text-2xl font-bold text-center">
+    {lang === "ru" ? "✅ Телефон подтверждён" : "✅ Telefon confirmat"}
+  </div>
+)}
 
-              {phoneVerified && (
-                <div className="p-4 rounded-2xl bg-green-100 text-green-800 text-2xl text-center font-bold">
-                  {t.phoneVerified}
-                </div>
-              )}
+            <button
+              type="button"
+              onClick={checkFamily}
+              className="bg-yellow-400 text-black p-5 rounded-2xl text-2xl font-black"
+            >
+              {t.checkClient}
+            </button>
 
-              <div id="recaptcha-container"></div>
-            </div>
+            {familyId && (
+              <div className="bg-green-100 text-green-800 p-5 rounded-2xl text-2xl font-bold text-center">
+                Family Pass: {familyId}
+              </div>
+            )}
 
             <input
               type="email"
               placeholder={t.email}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="p-5 md:p-6 rounded-2xl border-2 border-gray-200 text-2xl md:text-3xl text-black outline-none focus:border-blue-500"
+              className="p-5 rounded-2xl border-2 text-2xl text-black"
             />
 
             {children.map((child, index) => (
               <div
                 key={index}
-                className="bg-blue-50 border-2 border-blue-100 rounded-3xl p-4 grid gap-3"
+                className="bg-blue-50 rounded-3xl p-4 grid gap-3"
               >
                 <p className="text-2xl font-bold text-black">
                   {index === 0
@@ -504,7 +548,7 @@ export default function Home() {
                     onChange={(e) =>
                       updateChild(index, "name", e.target.value)
                     }
-                    className="p-5 rounded-2xl border-2 border-gray-200 text-2xl text-black outline-none focus:border-blue-500"
+                    className="p-5 rounded-2xl border-2 text-2xl text-black"
                   />
 
                   <input
@@ -514,14 +558,14 @@ export default function Home() {
                     onChange={(e) =>
                       updateChild(index, "age", e.target.value)
                     }
-                    className="p-5 rounded-2xl border-2 border-gray-200 text-2xl text-black outline-none focus:border-blue-500"
+                    className="p-5 rounded-2xl border-2 text-2xl text-black"
                   />
                 </div>
               </div>
             ))}
 
             {message && (
-              <div className="p-5 rounded-2xl bg-yellow-100 text-black text-2xl text-center font-bold">
+              <div className="bg-yellow-100 text-black p-5 rounded-2xl text-2xl text-center font-bold">
                 {message}
               </div>
             )}
@@ -529,7 +573,7 @@ export default function Home() {
             <button
               type="button"
               onClick={goNext}
-              className="bg-blue-600 text-white p-6 rounded-3xl text-3xl md:text-4xl font-black shadow-xl active:scale-95"
+              className="bg-blue-600 text-white p-6 rounded-3xl text-3xl font-black"
             >
               {t.next}
             </button>
@@ -571,7 +615,7 @@ export default function Home() {
               <button
                 type="button"
                 onClick={clearSignature}
-                className="mt-4 bg-red-500 text-white p-4 rounded-2xl text-2xl font-bold w-full active:scale-95"
+                className="mt-4 bg-red-500 text-white p-4 rounded-2xl text-2xl font-bold w-full"
               >
                 {t.clear}
               </button>
@@ -590,7 +634,7 @@ export default function Home() {
                   setMessage("");
                   setStep(1);
                 }}
-                className="bg-gray-300 text-black p-6 rounded-3xl text-3xl font-black active:scale-95"
+                className="bg-gray-300 text-black p-6 rounded-3xl text-3xl font-black"
               >
                 {t.back}
               </button>
@@ -598,7 +642,7 @@ export default function Home() {
               <button
                 type="button"
                 onClick={saveData}
-                className="bg-blue-600 text-white p-6 rounded-3xl text-3xl font-black shadow-xl active:scale-95"
+                className="bg-blue-600 text-white p-6 rounded-3xl text-3xl font-black shadow-xl"
               >
                 {t.save}
               </button>

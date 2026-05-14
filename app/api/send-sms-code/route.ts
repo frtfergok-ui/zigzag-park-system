@@ -1,62 +1,56 @@
 import { NextResponse } from "next/server";
 
-export const codes = new Map<string, string>();
+export const smsCodes = new Map<string, string>();
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    const { username } = body;
+    const { phone } = body;
 
-    if (!username) {
+    if (!phone) {
       return NextResponse.json(
-        { error: "Username required" },
+        { error: "Phone required" },
         { status: 400 }
       );
     }
-
-    const cleanUsername = username.replace("@", "");
 
     const code = Math.floor(
       100000 + Math.random() * 900000
     ).toString();
 
-    codes.set(cleanUsername, code);
+    smsCodes.set(phone, code);
 
-    const token = process.env.TELEGRAM_BOT_TOKEN;
+    const apiKey = process.env.SMSMD_API_KEY;
 
-    const text = `
-🎡 ZIG ZAG
+    const text = `ZIG ZAG code: ${code}`;
 
-🇷🇺 Ваш код подтверждения:
-${code}
-
-🇷🇴 Codul dvs. de confirmare:
-${code}
-`;
-
-    await fetch(
-      `https://api.telegram.org/bot${token}/sendMessage`,
+    const response = await fetch(
+      "https://api.sms.md/sms/send",
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          chat_id: `@${cleanUsername}`,
+          to: phone,
           text,
         }),
       }
     );
 
+    const data = await response.json();
+
     return NextResponse.json({
       success: true,
+      data,
     });
   } catch (error) {
     console.error(error);
 
     return NextResponse.json(
-      { error: "Server error" },
+      { error: "SMS send error" },
       { status: 500 }
     );
   }

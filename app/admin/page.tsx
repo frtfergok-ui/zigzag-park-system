@@ -4,12 +4,23 @@ import { useEffect, useState } from "react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import * as XLSX from "xlsx";
-import { collection, deleteDoc, doc, onSnapshot } from "firebase/firestore";
-import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
+import {
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+} from "firebase/firestore";
+import {
+  getAuth,
+  onAuthStateChanged,
+  signOut,
+} from "firebase/auth";
 import { db, app } from "@/firebase";
 
 export default function AdminPage() {
+  const [tab, setTab] = useState<"visitors" | "families">("visitors");
   const [visitors, setVisitors] = useState<any[]>([]);
+  const [families, setFamilies] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -19,23 +30,58 @@ export default function AdminPage() {
     const unsub = onAuthStateChanged(auth, (user) => {
       if (!user) window.location.href = "/login";
     });
+
     return () => unsub();
   }, []);
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, "visitors"), (snapshot) => {
+    const unsubVisitors = onSnapshot(collection(db, "visitors"), (snapshot) => {
       const data: any[] = [];
-      snapshot.forEach((d) => data.push({ id: d.id, ...d.data() }));
+
+      snapshot.forEach((d) => {
+        data.push({
+          id: d.id,
+          ...d.data(),
+        });
+      });
+
+      data.sort((a, b) => {
+        const da = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
+        const dbb = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+        return dbb.getTime() - da.getTime();
+      });
+
       setVisitors(data);
       setLoading(false);
     });
-    return () => unsub();
+
+    const unsubFamilies = onSnapshot(collection(db, "families"), (snapshot) => {
+      const data: any[] = [];
+
+      snapshot.forEach((d) => {
+        data.push({
+          id: d.id,
+          ...d.data(),
+        });
+      });
+
+      setFamilies(data);
+    });
+
+    return () => {
+      unsubVisitors();
+      unsubFamilies();
+    };
   }, []);
 
   const getDate = (v: any) => {
-    if (!v.createdAt) return "";
-    if (v.createdAt?.toDate) return v.createdAt.toDate().toLocaleString();
-    return new Date(v.createdAt).toLocaleString();
+    if (!v?.createdAt && !v?.updatedAt) return "";
+
+    const dateValue = v.createdAt || v.updatedAt;
+
+    if (dateValue?.toDate) return dateValue.toDate().toLocaleString();
+
+    return new Date(dateValue).toLocaleString();
   };
 
   const esc = (value: any) =>
@@ -46,13 +92,17 @@ export default function AdminPage() {
       .replaceAll('"', "&quot;")
       .replaceAll("'", "&#039;");
 
+  const logout = async () => {
+    await signOut(auth);
+    window.location.href = "/login";
+  };
+
   const deleteVisitor = async (id: string) => {
     await deleteDoc(doc(db, "visitors", id));
   };
 
-  const logout = async () => {
-    await signOut(auth);
-    window.location.href = "/login";
+  const deleteFamily = async (id: string) => {
+    await deleteDoc(doc(db, "families", id));
   };
 
   const createPDF = async (v: any) => {
@@ -109,8 +159,8 @@ export default function AdminPage() {
               </div>
 
               <div style="background:white; border:2px solid #dbeafe; border-radius:24px; padding:18px 20px;">
-                <div style="font-size:13px; color:#64748b; font-weight:900;">LANGUAGE</div>
-                <div style="font-size:24px; font-weight:900; margin-top:7px;">${esc(v.language || "-")}</div>
+                <div style="font-size:13px; color:#64748b; font-weight:900;">FAMILY PASS</div>
+                <div style="font-size:21px; font-weight:900; margin-top:7px;">${esc(v.familyId || "-")}</div>
               </div>
             </div>
 
@@ -252,6 +302,7 @@ export default function AdminPage() {
 
       return {
         "№ декларации": v.declarationNumber || "",
+        "Family Pass": v.familyId || "",
         Родитель: v.parentName || "",
         Телефон: v.phone || "",
         Email: v.email || "",
@@ -272,12 +323,47 @@ export default function AdminPage() {
     XLSX.writeFile(wb, "zigzag-visitors.xlsx");
   };
 
+  const exportFamiliesExcel = () => {
+    const rows = filteredFamilies.map((f) => {
+      const children = f.children || [];
+
+      return {
+        "Family Pass": f.familyId || "",
+        Родитель: f.parentName || "",
+        Телефон: f.phone || "",
+        Email: f.email || "",
+        "Ребёнок 1": children[0]?.name || "",
+        "Возраст 1": children[0]?.age || "",
+        "Ребёнок 2": children[1]?.name || "",
+        "Возраст 2": children[1]?.age || "",
+        "Ребёнок 3": children[2]?.name || "",
+        "Возраст 3": children[2]?.age || "",
+        Дата: getDate(f),
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Family Pass");
+    XLSX.writeFile(wb, "zigzag-family-pass.xlsx");
+  };
+
   const filteredVisitors = visitors.filter((v) => {
     const childrenText = (v.children || [])
       .map((c: any) => `${c.name} ${c.age}`)
       .join(" ");
 
-    return `${v.declarationNumber || ""} ${v.parentName} ${v.phone} ${v.email} ${childrenText}`
+    return `${v.declarationNumber || ""} ${v.familyId || ""} ${v.parentName || ""} ${v.phone || ""} ${v.email || ""} ${childrenText}`
+      .toLowerCase()
+      .includes(search.toLowerCase());
+  });
+
+  const filteredFamilies = families.filter((f) => {
+    const childrenText = (f.children || [])
+      .map((c: any) => `${c.name} ${c.age}`)
+      .join(" ");
+
+    return `${f.familyId || ""} ${f.parentName || ""} ${f.phone || ""} ${f.email || ""} ${childrenText}`
       .toLowerCase()
       .includes(search.toLowerCase());
   });
@@ -318,7 +404,7 @@ export default function AdminPage() {
           />
 
           <button
-            onClick={exportExcel}
+            onClick={tab === "visitors" ? exportExcel : exportFamiliesExcel}
             className="bg-emerald-600 text-white px-6 py-3 rounded-xl text-xl font-bold"
           >
             Excel
@@ -333,78 +419,181 @@ export default function AdminPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-5">
-        <div className="bg-white rounded-2xl shadow-md p-5 border">
-          <p className="text-gray-500 text-xl">Регистраций</p>
-          <p className="text-5xl font-bold text-black">{visitors.length}</p>
-        </div>
+      <div className="flex gap-3 mb-5">
+        <button
+          onClick={() => setTab("visitors")}
+          className={`px-6 py-4 rounded-2xl text-2xl font-black ${
+            tab === "visitors"
+              ? "bg-blue-600 text-white"
+              : "bg-white text-black border"
+          }`}
+        >
+          Регистрации
+        </button>
 
-        <div className="bg-white rounded-2xl shadow-md p-5 border">
-          <p className="text-gray-500 text-xl">Сегодня</p>
-          <p className="text-5xl font-bold text-black">{todayVisitors}</p>
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-md p-5 border">
-          <p className="text-gray-500 text-xl">Детей</p>
-          <p className="text-5xl font-bold text-black">{totalChildren}</p>
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-md p-5 border">
-          <p className="text-gray-500 text-xl">Найдено</p>
-          <p className="text-5xl font-bold text-black">{filteredVisitors.length}</p>
-        </div>
+        <button
+          onClick={() => setTab("families")}
+          className={`px-6 py-4 rounded-2xl text-2xl font-black ${
+            tab === "families"
+              ? "bg-green-600 text-white"
+              : "bg-white text-black border"
+          }`}
+        >
+          Family Pass
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        {filteredVisitors.map((v) => (
-          <div key={v.id} className="bg-white rounded-2xl shadow-md p-5 border">
-            <p className="text-xl text-blue-600 font-black mb-3">
-              № {v.declarationNumber || "Без номера"}
-            </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-black">
-              <p className="text-xl">👨 Родитель: <b>{v.parentName}</b></p>
-              <p className="text-xl">📞 Телефон: <b>{v.phone}</b></p>
-              <p className="text-xl">📧 Email: <b>{v.email}</b></p>
-              <p className="text-lg text-gray-500">🌍 Язык: {v.language || "—"}</p>
-              <p className="text-lg text-gray-500">📅 Дата: {getDate(v)}</p>
+      {tab === "visitors" && (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-5">
+            <div className="bg-white rounded-2xl shadow-md p-5 border">
+              <p className="text-gray-500 text-xl">Регистраций</p>
+              <p className="text-5xl font-bold text-black">{visitors.length}</p>
             </div>
 
-            <div className="mt-4 bg-blue-50 rounded-xl p-4">
-              <p className="text-xl font-bold text-black mb-2">👶 Дети:</p>
-              {(v.children || []).map((child: any, index: number) => (
-                <p key={index} className="text-xl text-black">
-                  {index + 1}. <b>{child.name}</b> — {child.age} лет
-                </p>
-              ))}
+            <div className="bg-white rounded-2xl shadow-md p-5 border">
+              <p className="text-gray-500 text-xl">Сегодня</p>
+              <p className="text-5xl font-bold text-black">{todayVisitors}</p>
             </div>
 
-            {v.signature && (
-              <img
-                src={v.signature}
-                alt="signature"
-                className="mt-4 border rounded-xl bg-white w-full max-w-md h-32 object-contain"
-              />
-            )}
+            <div className="bg-white rounded-2xl shadow-md p-5 border">
+              <p className="text-gray-500 text-xl">Детей</p>
+              <p className="text-5xl font-bold text-black">{totalChildren}</p>
+            </div>
 
-            <div className="grid grid-cols-2 gap-3 mt-4">
-              <button
-                onClick={() => createPDF(v)}
-                className="bg-green-600 text-white p-3 rounded-xl text-xl font-bold"
-              >
-                PDF
-              </button>
-
-              <button
-                onClick={() => deleteVisitor(v.id)}
-                className="bg-red-600 text-white p-3 rounded-xl text-xl font-bold"
-              >
-                Удалить
-              </button>
+            <div className="bg-white rounded-2xl shadow-md p-5 border">
+              <p className="text-gray-500 text-xl">Найдено</p>
+              <p className="text-5xl font-bold text-black">
+                {filteredVisitors.length}
+              </p>
             </div>
           </div>
-        ))}
-      </div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            {filteredVisitors.map((v) => (
+              <div key={v.id} className="bg-white rounded-2xl shadow-md p-5 border">
+                <div className="flex flex-wrap gap-2 mb-3">
+                  <span className="bg-blue-100 text-blue-700 px-4 py-2 rounded-xl text-xl font-black">
+                    № {v.declarationNumber || "Без номера"}
+                  </span>
+
+                  {v.familyId && (
+                    <span className="bg-green-100 text-green-700 px-4 py-2 rounded-xl text-xl font-black">
+                      {v.familyId}
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-black">
+                  <p className="text-xl">👨 Родитель: <b>{v.parentName}</b></p>
+                  <p className="text-xl">📞 Телефон: <b>{v.phone}</b></p>
+                  <p className="text-xl">📧 Email: <b>{v.email}</b></p>
+                  <p className="text-lg text-gray-500">🌍 Язык: {v.language || "—"}</p>
+                  <p className="text-lg text-gray-500">📅 Дата: {getDate(v)}</p>
+                  <p className="text-lg text-gray-500">
+                    📱 Телефон проверен: {v.phoneVerified ? "Да" : "Нет"}
+                  </p>
+                </div>
+
+                <div className="mt-4 bg-blue-50 rounded-xl p-4">
+                  <p className="text-xl font-bold text-black mb-2">👶 Дети:</p>
+
+                  {(v.children || []).map((child: any, index: number) => (
+                    <p key={index} className="text-xl text-black">
+                      {index + 1}. <b>{child.name}</b> — {child.age} лет
+                    </p>
+                  ))}
+                </div>
+
+                {v.signature && (
+                  <img
+                    src={v.signature}
+                    alt="signature"
+                    className="mt-4 border rounded-xl bg-white w-full max-w-md h-32 object-contain"
+                  />
+                )}
+
+                <div className="grid grid-cols-2 gap-3 mt-4">
+                  <button
+                    onClick={() => createPDF(v)}
+                    className="bg-green-600 text-white p-3 rounded-xl text-xl font-bold"
+                  >
+                    PDF
+                  </button>
+
+                  <button
+                    onClick={() => deleteVisitor(v.id)}
+                    className="bg-red-600 text-white p-3 rounded-xl text-xl font-bold"
+                  >
+                    Удалить
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {tab === "families" && (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+            <div className="bg-white rounded-2xl shadow-md p-5 border">
+              <p className="text-gray-500 text-xl">Family Pass</p>
+              <p className="text-5xl font-bold text-black">{families.length}</p>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-md p-5 border">
+              <p className="text-gray-500 text-xl">Найдено</p>
+              <p className="text-5xl font-bold text-black">
+                {filteredFamilies.length}
+              </p>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-md p-5 border">
+              <p className="text-gray-500 text-xl">Детей в Family Pass</p>
+              <p className="text-5xl font-bold text-black">
+                {families.reduce((sum, f) => sum + (f.children?.length || 0), 0)}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            {filteredFamilies.map((f) => (
+              <div key={f.id} className="bg-white rounded-2xl shadow-md p-5 border">
+                <div className="flex flex-wrap gap-2 mb-3">
+                  <span className="bg-green-100 text-green-700 px-4 py-2 rounded-xl text-xl font-black">
+                    {f.familyId || "Без Family ID"}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-black">
+                  <p className="text-xl">👨 Родитель: <b>{f.parentName}</b></p>
+                  <p className="text-xl">📞 Телефон: <b>{f.phone}</b></p>
+                  <p className="text-xl">📧 Email: <b>{f.email}</b></p>
+                  <p className="text-lg text-gray-500">📅 Дата: {getDate(f)}</p>
+                </div>
+
+                <div className="mt-4 bg-green-50 rounded-xl p-4">
+                  <p className="text-xl font-bold text-black mb-2">👶 Дети:</p>
+
+                  {(f.children || []).map((child: any, index: number) => (
+                    <p key={index} className="text-xl text-black">
+                      {index + 1}. <b>{child.name}</b> — {child.age} лет
+                    </p>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => deleteFamily(f.id)}
+                  className="mt-4 bg-red-600 text-white p-3 rounded-xl text-xl font-bold w-full"
+                >
+                  Удалить Family Pass
+                </button>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

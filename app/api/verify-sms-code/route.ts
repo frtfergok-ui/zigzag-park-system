@@ -1,17 +1,16 @@
 import { NextResponse } from "next/server";
-import { codes } from "../send-telegram-code/route";
+import { smsCodes } from "../send-sms-code/route";
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    const { username, code } = body;
+    const { phone, code } = body;
 
-    const cleanUsername = username.replace("@", "");
-
-    const savedCode = codes.get(cleanUsername);
+    const savedCode = smsCodes.get(phone);
 
     if (savedCode === code) {
-      codes.delete(cleanUsername);
+      smsCodes.delete(phone);
 
       return NextResponse.json({
         success: true,
@@ -26,7 +25,7 @@ export async function POST(req: Request) {
     console.error(error);
 
     return NextResponse.json(
-      { error: "Server error" },
+      { error: "Verification error" },
       { status: 500 }
     );
   }
