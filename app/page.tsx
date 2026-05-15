@@ -313,20 +313,22 @@ export default function Home() {
       }));
 if (familyId) {
   await setDoc(
-    doc(db, "families", cleanPhone),
-    {
-      parentName: parentName.trim().toUpperCase(),
-      phone,
-      email,
-      children: savedChildren,
-      lastVisit: new Date(),
-      lastSignature: signature,
-      lastAgreedAt: new Date(),
-      visitsCount: increment(1),
-      updatedAt: new Date(),
-    },
-    { merge: true }
-  );
+  doc(db, "families", cleanPhone),
+  {
+    parentName: parentName.trim().toUpperCase(),
+    phone,
+    email,
+    children: savedChildren,
+
+    lastVisit: new Date(),
+    updatedAt: new Date(),
+    lastAgreedAt: new Date(),
+
+    lastSignature: signature,
+    visitsCount: increment(1),
+  },
+  { merge: true }
+);
 
   setMessage(`${t.success} ${familyId}`);
 
