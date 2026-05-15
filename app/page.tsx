@@ -64,7 +64,7 @@ const text = {
     child3: "Ребёнок 3",
     oldClient: "✅ Постоянный клиент найден. Данные загружены",
     newClient: "ℹ️ Новый клиент",
-    checkClient: "Проверить наличие Family Pass",
+    checkClient: "Проверить Family Pass",
     next: "Продолжить",
     back: "Назад",
     declarationTitle: "Декларация согласия",
@@ -93,7 +93,7 @@ const text = {
     child3: "Copilul 3",
     oldClient: "✅ Client permanent găsit. Datele au fost încărcate",
     newClient: "ℹ️ Client nou",
-    checkClient: "Verifică prezența Family Pass",
+    checkClient: "Verifică Family Pass",
     next: "Continuă",
     back: "Înapoi",
     declarationTitle: "Declarație de acord",
@@ -130,9 +130,6 @@ export default function Home() {
 
   const [message, setMessage] = useState("");
   const [agree, setAgree] = useState(false);
-  const [smsCode, setSmsCode] = useState("");
-const [phoneVerified, setPhoneVerified] = useState(false);
-const [codeSent, setCodeSent] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const isDrawing = useRef(false);
@@ -152,6 +149,11 @@ const [codeSent, setCodeSent] = useState(false);
   };
 
   const checkFamily = async () => {
+    if (!cleanPhone || cleanPhone.length < 8) {
+      setMessage(t.newClient);
+      return;
+    }
+
     const ref = doc(db, "families", cleanPhone);
     const snap = await getDoc(ref);
 
@@ -213,52 +215,7 @@ const [codeSent, setCodeSent] = useState(false);
       return `ZZ-FAMILY-${String(nextNumber).padStart(6, "0")}`;
     });
   };
-const sendSMSCode = async () => {
-  try {
-    setMessage("");
 
-    const response = await fetch("/api/send-sms-code", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ phone }),
-    });
-
-    if (!response.ok) throw new Error();
-
-    setCodeSent(true);
-    setMessage(lang === "ru" ? "✅ SMS-код отправлен" : "✅ Cod SMS trimis");
-  } catch {
-    setMessage(lang === "ru" ? "❌ Ошибка отправки SMS" : "❌ Eroare SMS");
-  }
-};
-
-const verifySMSCode = async () => {
-  try {
-    setMessage("");
-
-    const response = await fetch("/api/verify-sms-code", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        phone,
-        code: smsCode,
-      }),
-    });
-
-    if (!response.ok) throw new Error();
-
-    setPhoneVerified(true);
-    setMessage(lang === "ru" ? "✅ Телефон подтверждён" : "✅ Telefon confirmat");
-
-    await checkFamily();
-  } catch {
-    setMessage(lang === "ru" ? "❌ Неверный код" : "❌ Cod greșit");
-  }
-};
   const goNext = () => {
     setMessage("");
 
@@ -278,14 +235,7 @@ const verifySMSCode = async () => {
         return;
       }
     }
-if (!phoneVerified) {
-  setMessage(
-    lang === "ru"
-      ? "❌ Подтвердите номер телефона"
-      : "❌ Confirmați numărul de telefon"
-  );
-  return;
-}
+
     setStep(2);
   };
 
@@ -365,7 +315,7 @@ if (!phoneVerified) {
         familyId: newFamilyId,
         parentName: parentName.trim().toUpperCase(),
         phone,
-        phoneVerified: true,
+        phoneVerified: false,
         email,
         children: savedChildren,
         language: lang,
@@ -421,7 +371,7 @@ if (!phoneVerified) {
             />
           </div>
 
-          <div className="absolute top-28 right-4 flex gap-2">
+          <div className="absolute top-10 right-4 flex gap-2">
             <button
               type="button"
               onClick={() => setLang("ru")}
@@ -469,41 +419,6 @@ if (!phoneVerified) {
               onChange={(e) => setPhone(e.target.value)}
               className="p-5 rounded-2xl border-2 text-2xl text-black"
             />
-            {!phoneVerified && (
-  <button
-    type="button"
-    onClick={sendSMSCode}
-    className="bg-yellow-400 text-black p-5 rounded-2xl text-2xl font-black"
-  >
-    {lang === "ru" ? "Отправить SMS-код" : "Trimite cod SMS"}
-  </button>
-)}
-
-{codeSent && !phoneVerified && (
-  <>
-    <input
-      type="text"
-      placeholder={lang === "ru" ? "Введите SMS-код" : "Introduceți codul SMS"}
-      value={smsCode}
-      onChange={(e) => setSmsCode(e.target.value)}
-      className="p-5 rounded-2xl border-2 text-2xl text-black"
-    />
-
-    <button
-      type="button"
-      onClick={verifySMSCode}
-      className="bg-green-600 text-white p-5 rounded-2xl text-2xl font-black"
-    >
-      {lang === "ru" ? "Подтвердить код" : "Confirmă codul"}
-    </button>
-  </>
-)}
-
-{phoneVerified && (
-  <div className="bg-green-100 text-green-800 p-5 rounded-2xl text-2xl font-bold text-center">
-    {lang === "ru" ? "✅ Телефон подтверждён" : "✅ Telefon confirmat"}
-  </div>
-)}
 
             <button
               type="button"
