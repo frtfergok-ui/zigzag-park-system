@@ -315,17 +315,22 @@ if (familyId) {
   await setDoc(
   doc(db, "families", cleanPhone),
   {
+    familyId: newFamilyId,
     parentName: parentName.trim().toUpperCase(),
     phone,
     email,
     children: savedChildren,
 
     lastVisit: new Date(),
-    updatedAt: new Date(),
     lastAgreedAt: new Date(),
+    updatedAt: new Date(),
 
+    lastDeclarationNumber: declarationNumber,
     lastSignature: signature,
+
     visitsCount: increment(1),
+
+    createdAt: new Date(),
   },
   { merge: true }
 );
