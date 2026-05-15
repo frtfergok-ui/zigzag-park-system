@@ -10,7 +10,6 @@ import {
   setDoc,
   increment,
 } from "firebase/firestore";
-
 import { db } from "@/firebase";
 
 const declaration = {
@@ -57,14 +56,15 @@ const text = {
   ru: {
     subtitle: "Регистрация посетителя",
     parent: "Имя и фамилия родителя латиницей",
-    phone: "Телефон (+373...)",
+    phone: "Телефон",
     email: "Email",
     childName: "Имя ребёнка латиницей",
     childAge: "Возраст",
     child1: "Ребёнок 1",
     child2: "Ребёнок 2",
     child3: "Ребёнок 3",
-    oldClient: "✅ Вы уже заполняли декларацию. Проверьте данные, согласитесь с правилами и подпишите ещё раз.",
+    oldClient:
+      "✅ Вы уже заполняли декларацию. Проверьте данные, согласитесь с правилами и подпишите ещё раз.",
     newClient: "ℹ️ Новый клиент",
     checkClient: "Проверить Family Pass",
     next: "Продолжить",
@@ -86,14 +86,15 @@ const text = {
   ro: {
     subtitle: "Înregistrarea vizitatorului",
     parent: "Numele părintelui cu litere latine",
-    phone: "Telefon (+373...)",
+    phone: "Telefon",
     email: "Email",
     childName: "Numele copilului cu litere latine",
     childAge: "Vârsta",
     child1: "Copilul 1",
     child2: "Copilul 2",
     child3: "Copilul 3",
-    oldClient: "✅ Ați completat deja declarația. Verificați datele, acceptați regulile și semnați din nou.",
+    oldClient:
+      "✅ Ați completat deja declarația. Verificați datele, acceptați regulile și semnați din nou.",
     newClient: "ℹ️ Client nou",
     checkClient: "Verifică Family Pass",
     next: "Continuă",
@@ -151,7 +152,8 @@ export default function Home() {
   };
 
   const checkFamily = async () => {
-    if (!cleanPhone || cleanPhone.length < 8) {
+    if (!cleanPhone || cleanPhone.length < 6) {
+      setFamilyId("");
       setMessage(t.newClient);
       return;
     }
@@ -289,6 +291,21 @@ export default function Home() {
     setHasSignature(false);
   };
 
+  const resetForm = () => {
+    setParentName("");
+    setPhone("+373");
+    setEmail("");
+    setFamilyId("");
+    setChildren([
+      { name: "", age: "" },
+      { name: "", age: "" },
+      { name: "", age: "" },
+    ]);
+    setAgree(false);
+    clearSignature();
+    setStep(1);
+  };
+
   const saveData = async () => {
     try {
       setMessage(t.saving);
@@ -311,47 +328,7 @@ export default function Home() {
         name: child.name.trim().toUpperCase(),
         age: child.age.trim(),
       }));
-if (familyId) {
-  await setDoc(
-  doc(db, "families", cleanPhone),
-  {
-    familyId: newFamilyId,
-    parentName: parentName.trim().toUpperCase(),
-    phone,
-    email,
-    children: savedChildren,
 
-    lastVisit: new Date(),
-    lastAgreedAt: new Date(),
-    updatedAt: new Date(),
-
-    lastDeclarationNumber: declarationNumber,
-    lastSignature: signature,
-
-    visitsCount: increment(1),
-
-    createdAt: new Date(),
-  },
-  { merge: true }
-);
-
-  setMessage(`${t.success} ${familyId}`);
-
-  setParentName("");
-  setPhone("+373");
-  setEmail("");
-  setFamilyId("");
-  setChildren([
-    { name: "", age: "" },
-    { name: "", age: "" },
-    { name: "", age: "" },
-  ]);
-  setAgree(false);
-  clearSignature();
-  setStep(1);
-
-  return;
-}
       await addDoc(collection(db, "visitors"), {
         declarationNumber,
         familyId: newFamilyId,
@@ -375,26 +352,22 @@ if (familyId) {
           phone,
           email,
           children: savedChildren,
+
+          lastVisit: new Date(),
+          lastAgreedAt: new Date(),
           updatedAt: new Date(),
+
+          lastDeclarationNumber: declarationNumber,
+          lastSignature: signature,
+
+          visitsCount: increment(1),
           createdAt: new Date(),
         },
         { merge: true }
       );
 
       setMessage(`${t.success} № ${declarationNumber}`);
-
-      setParentName("");
-      setPhone("+373");
-      setEmail("");
-      setFamilyId("");
-      setChildren([
-        { name: "", age: "" },
-        { name: "", age: "" },
-        { name: "", age: "" },
-      ]);
-      setAgree(false);
-      clearSignature();
-      setStep(1);
+      resetForm();
     } catch (error) {
       console.error(error);
       setMessage(t.error);
@@ -455,26 +428,26 @@ if (familyId) {
             />
 
             <input
-  type="tel"
-  placeholder={t.phone}
-  value={phone}
-  onChange={(e) => {
-    let value = e.target.value;
+              type="tel"
+              placeholder={t.phone}
+              value={phone}
+              onChange={(e) => {
+                let value = e.target.value;
 
-    if (!value.startsWith("+")) {
-      value = "+" + value.replace(/\+/g, "");
-    }
+                if (!value.startsWith("+")) {
+                  value = "+" + value.replace(/\+/g, "");
+                }
 
-    value = "+" + value.slice(1).replace(/\D/g, "");
+                value = "+" + value.slice(1).replace(/\D/g, "");
 
-    if (value.length > 16) {
-      value = value.slice(0, 16);
-    }
+                if (value.length > 16) {
+                  value = value.slice(0, 16);
+                }
 
-    setPhone(value);
-  }}
-  className="p-5 rounded-2xl border-2 text-2xl text-black"
-/>
+                setPhone(value);
+              }}
+              className="p-5 rounded-2xl border-2 text-2xl text-black"
+            />
 
             <button
               type="button"
