@@ -371,7 +371,7 @@ export default function Home() {
             />
           </div>
 
-          <div className="absolute top-10 right-4 flex gap-2">
+          <div className="absolute top-28 right-4 flex gap-2">
             <button
               type="button"
               onClick={() => setLang("ru")}
