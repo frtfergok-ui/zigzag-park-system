@@ -8,7 +8,9 @@ import {
   runTransaction,
   getDoc,
   setDoc,
+  increment,
 } from "firebase/firestore";
+
 import { db } from "@/firebase";
 
 const declaration = {
@@ -62,7 +64,7 @@ const text = {
     child1: "Ребёнок 1",
     child2: "Ребёнок 2",
     child3: "Ребёнок 3",
-    oldClient: "✅ Постоянный клиент найден. Данные загружены",
+    oldClient: "✅ Вы уже заполняли декларацию. Проверьте данные, согласитесь с правилами и подпишите ещё раз.",
     newClient: "ℹ️ Новый клиент",
     checkClient: "Проверить Family Pass",
     next: "Продолжить",
@@ -91,7 +93,7 @@ const text = {
     child1: "Copilul 1",
     child2: "Copilul 2",
     child3: "Copilul 3",
-    oldClient: "✅ Client permanent găsit. Datele au fost încărcate",
+    oldClient: "✅ Ați completat deja declarația. Verificați datele, acceptați regulile și semnați din nou.",
     newClient: "ℹ️ Client nou",
     checkClient: "Verifică Family Pass",
     next: "Continuă",
@@ -309,7 +311,40 @@ export default function Home() {
         name: child.name.trim().toUpperCase(),
         age: child.age.trim(),
       }));
+if (familyId) {
+  await setDoc(
+    doc(db, "families", cleanPhone),
+    {
+      parentName: parentName.trim().toUpperCase(),
+      phone,
+      email,
+      children: savedChildren,
+      lastVisit: new Date(),
+      lastSignature: signature,
+      lastAgreedAt: new Date(),
+      visitsCount: increment(1),
+      updatedAt: new Date(),
+    },
+    { merge: true }
+  );
 
+  setMessage(`${t.success} ${familyId}`);
+
+  setParentName("");
+  setPhone("+373");
+  setEmail("");
+  setFamilyId("");
+  setChildren([
+    { name: "", age: "" },
+    { name: "", age: "" },
+    { name: "", age: "" },
+  ]);
+  setAgree(false);
+  clearSignature();
+  setStep(1);
+
+  return;
+}
       await addDoc(collection(db, "visitors"), {
         declarationNumber,
         familyId: newFamilyId,
@@ -413,12 +448,26 @@ export default function Home() {
             />
 
             <input
-              type="tel"
-              placeholder={t.phone}
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="p-5 rounded-2xl border-2 text-2xl text-black"
-            />
+  type="tel"
+  placeholder={t.phone}
+  value={phone}
+  onChange={(e) => {
+    let value = e.target.value;
+
+    if (!value.startsWith("+")) {
+      value = "+" + value.replace(/\+/g, "");
+    }
+
+    value = "+" + value.slice(1).replace(/\D/g, "");
+
+    if (value.length > 16) {
+      value = value.slice(0, 16);
+    }
+
+    setPhone(value);
+  }}
+  className="p-5 rounded-2xl border-2 text-2xl text-black"
+/>
 
             <button
               type="button"
