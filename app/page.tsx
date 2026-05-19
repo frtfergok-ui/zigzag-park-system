@@ -60,13 +60,11 @@ const text = {
     email: "Email",
     childName: "Имя ребёнка латиницей",
     childAge: "Возраст",
-    child1: "Ребёнок 1",
-    child2: "Ребёнок 2",
-    child3: "Ребёнок 3",
     oldClient:
       "✅ Вы уже заполняли декларацию. Проверьте данные, согласитесь с правилами и подпишите ещё раз.",
     newClient: "ℹ️ Новый клиент",
     checkClient: "Проверить Family Pass",
+    addChild: "Добавить ребёнка",
     next: "Продолжить",
     back: "Назад",
     declarationTitle: "Декларация согласия",
@@ -90,13 +88,11 @@ const text = {
     email: "Email",
     childName: "Numele copilului cu litere latine",
     childAge: "Vârsta",
-    child1: "Copilul 1",
-    child2: "Copilul 2",
-    child3: "Copilul 3",
     oldClient:
       "✅ Ați completat deja declarația. Verificați datele, acceptați regulile și semnați din nou.",
     newClient: "ℹ️ Client nou",
     checkClient: "Verifică Family Pass",
+    addChild: "Adaugă copil",
     next: "Continuă",
     back: "Înapoi",
     declarationTitle: "Declarație de acord",
@@ -125,11 +121,7 @@ export default function Home() {
   const [email, setEmail] = useState("");
   const [familyId, setFamilyId] = useState("");
 
-  const [children, setChildren] = useState([
-    { name: "", age: "" },
-    { name: "", age: "" },
-    { name: "", age: "" },
-  ]);
+  const [children, setChildren] = useState([{ name: "", age: "" }]);
 
   const [message, setMessage] = useState("");
   const [agree, setAgree] = useState(false);
@@ -151,6 +143,15 @@ export default function Home() {
     setChildren(updated);
   };
 
+  const addChild = () => {
+    setChildren([...children, { name: "", age: "" }]);
+  };
+
+  const removeChild = (index: number) => {
+    if (children.length === 1) return;
+    setChildren(children.filter((_, i) => i !== index));
+  };
+
   const checkFamily = async () => {
     if (!cleanPhone || cleanPhone.length < 6) {
       setFamilyId("");
@@ -169,11 +170,7 @@ export default function Home() {
       setEmail(data.email || "");
 
       if (data.children?.length) {
-        setChildren([
-          data.children[0] || { name: "", age: "" },
-          data.children[1] || { name: "", age: "" },
-          data.children[2] || { name: "", age: "" },
-        ]);
+        setChildren(data.children);
       }
 
       setMessage(t.oldClient);
@@ -296,11 +293,7 @@ export default function Home() {
     setPhone("+373");
     setEmail("");
     setFamilyId("");
-    setChildren([
-      { name: "", age: "" },
-      { name: "", age: "" },
-      { name: "", age: "" },
-    ]);
+    setChildren([{ name: "", age: "" }]);
     setAgree(false);
     clearSignature();
     setStep(1);
@@ -352,14 +345,11 @@ export default function Home() {
           phone,
           email,
           children: savedChildren,
-
           lastVisit: new Date(),
           lastAgreedAt: new Date(),
           updatedAt: new Date(),
-
           lastDeclarationNumber: declarationNumber,
           lastSignature: signature,
-
           visitsCount: increment(1),
           createdAt: new Date(),
         },
@@ -386,7 +376,7 @@ export default function Home() {
             />
           </div>
 
-          <div className="absolute top-28 right-4 flex gap-2">
+          <div className="absolute top-30 right-4 flex gap-2">
             <button
               type="button"
               onClick={() => setLang("ru")}
@@ -476,13 +466,23 @@ export default function Home() {
                 key={index}
                 className="bg-blue-50 rounded-3xl p-4 grid gap-3"
               >
-                <p className="text-2xl font-bold text-black">
-                  {index === 0
-                    ? t.child1
-                    : index === 1
-                    ? t.child2
-                    : t.child3}
-                </p>
+                <div className="flex items-center justify-between">
+                  <p className="text-2xl font-bold text-black">
+                    {lang === "ru"
+                      ? `Ребёнок ${index + 1}`
+                      : `Copilul ${index + 1}`}
+                  </p>
+
+                  {children.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeChild(index)}
+                      className="bg-red-500 text-white px-5 py-2 rounded-xl text-2xl font-black"
+                    >
+                      −
+                    </button>
+                  )}
+                </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <input
@@ -507,6 +507,14 @@ export default function Home() {
                 </div>
               </div>
             ))}
+
+            <button
+              type="button"
+              onClick={addChild}
+              className="bg-green-600 text-white p-5 rounded-2xl text-2xl font-black"
+            >
+              + {t.addChild}
+            </button>
 
             {message && (
               <div className="bg-yellow-100 text-black p-5 rounded-2xl text-2xl text-center font-bold">
