@@ -1,9 +1,10 @@
 "use client";
 
-import html2canvas from "html2canvas";
 import { useEffect, useState } from "react";
 import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 import * as XLSX from "xlsx";
+
 import {
   collection,
   deleteDoc,
@@ -12,22 +13,37 @@ import {
   onSnapshot,
   updateDoc,
 } from "firebase/firestore";
-import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
+
+import {
+  getAuth,
+  onAuthStateChanged,
+  signOut,
+} from "firebase/auth";
+
 import { db, app } from "@/firebase";
 
 type AdminRole = "owner" | "manager" | "cashier";
 
 export default function AdminPage() {
   const [tab, setTab] = useState<"visitors" | "families">("visitors");
+
   const [visitors, setVisitors] = useState<any[]>([]);
   const [families, setFamilies] = useState<any[]>([]);
+
   const [search, setSearch] = useState("");
+
   const [loading, setLoading] = useState(true);
-  const [adminRole, setAdminRole] = useState<AdminRole>("cashier");
+
+  const [adminRole, setAdminRole] =
+    useState<AdminRole>("cashier");
 
   const [editOpen, setEditOpen] = useState(false);
-  const [editingType, setEditingType] = useState<"visitor" | "family" | "">("");
+
+  const [editingType, setEditingType] =
+    useState<"visitor" | "family" | "">("");
+
   const [editingId, setEditingId] = useState("");
+
   const [editData, setEditData] = useState<any>({
     parentName: "",
     phone: "",
@@ -37,69 +53,89 @@ export default function AdminPage() {
 
   const auth = getAuth(app);
 
-  const canEdit = adminRole === "owner" || adminRole === "manager";
+  const canEdit =
+    adminRole === "owner" ||
+    adminRole === "manager";
+
   const canDelete = adminRole === "owner";
-  const canExport = adminRole === "owner" || adminRole === "manager";
+
+  const canExport =
+    adminRole === "owner" ||
+    adminRole === "manager";
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        window.location.href = "/login";
-        return;
-      }
+    const unsub = onAuthStateChanged(
+      auth,
+      async (user) => {
+        if (!user) {
+          window.location.href = "/login";
+          return;
+        }
 
-      const adminRef = doc(db, "admins", user.email || "");
-      const adminSnap = await getDoc(adminRef);
+        const adminRef = doc(
+          db,
+          "admins",
+          user.email || ""
+        );
 
-      if (adminSnap.exists()) {
-        setAdminRole(adminSnap.data().role || "cashier");
-      } else {
-        setAdminRole("cashier");
+        const adminSnap = await getDoc(adminRef);
+
+        if (adminSnap.exists()) {
+          setAdminRole(
+            adminSnap.data().role || "cashier"
+          );
+        }
       }
-    });
+    );
 
     return () => unsub();
   }, []);
 
   useEffect(() => {
-    const unsubVisitors = onSnapshot(collection(db, "visitors"), (snapshot) => {
-      const data: any[] = [];
-      snapshot.forEach((d) => data.push({ id: d.id, ...d.data() }));
+    const unsubVisitors = onSnapshot(
+      collection(db, "visitors"),
+      (snapshot) => {
+        const data: any[] = [];
 
-      data.sort((a, b) => {
-        const da = a.createdAt?.toDate
-          ? a.createdAt.toDate()
-          : new Date(a.createdAt || 0);
+        snapshot.forEach((d) =>
+          data.push({
+            id: d.id,
+            ...d.data(),
+          })
+        );
 
-        const dbb = b.createdAt?.toDate
-          ? b.createdAt.toDate()
-          : new Date(b.createdAt || 0);
+        data.sort((a, b) => {
+          const da = a.createdAt?.toDate
+            ? a.createdAt.toDate()
+            : new Date(a.createdAt || 0);
 
-        return dbb.getTime() - da.getTime();
-      });
+          const dbb = b.createdAt?.toDate
+            ? b.createdAt.toDate()
+            : new Date(b.createdAt || 0);
 
-      setVisitors(data);
-      setLoading(false);
-    });
+          return dbb.getTime() - da.getTime();
+        });
 
-    const unsubFamilies = onSnapshot(collection(db, "families"), (snapshot) => {
-      const data: any[] = [];
-      snapshot.forEach((d) => data.push({ id: d.id, ...d.data() }));
+        setVisitors(data);
+        setLoading(false);
+      }
+    );
 
-      data.sort((a, b) => {
-        const da = a.lastVisit?.toDate
-          ? a.lastVisit.toDate()
-          : new Date(a.lastVisit || a.updatedAt || 0);
+    const unsubFamilies = onSnapshot(
+      collection(db, "families"),
+      (snapshot) => {
+        const data: any[] = [];
 
-        const dbb = b.lastVisit?.toDate
-          ? b.lastVisit.toDate()
-          : new Date(b.lastVisit || b.updatedAt || 0);
+        snapshot.forEach((d) =>
+          data.push({
+            id: d.id,
+            ...d.data(),
+          })
+        );
 
-        return dbb.getTime() - da.getTime();
-      });
-
-      setFamilies(data);
-    });
+        setFamilies(data);
+      }
+    );
 
     return () => {
       unsubVisitors();
@@ -108,11 +144,18 @@ export default function AdminPage() {
   }, []);
 
   const getDate = (v: any) => {
-    const dateValue = v.lastVisit || v.updatedAt || v.createdAt;
+    const dateValue =
+      v.lastVisit ||
+      v.updatedAt ||
+      v.createdAt;
 
     if (!dateValue) return "";
 
-    if (dateValue?.toDate) return dateValue.toDate().toLocaleString();
+    if (dateValue?.toDate) {
+      return dateValue
+        .toDate()
+        .toLocaleString();
+    }
 
     return new Date(dateValue).toLocaleString();
   };
@@ -124,34 +167,46 @@ export default function AdminPage() {
 
   const deleteVisitor = async (id: string) => {
     if (!canDelete) return;
+
     await deleteDoc(doc(db, "visitors", id));
   };
 
   const deleteFamily = async (id: string) => {
     if (!canDelete) return;
+
     await deleteDoc(doc(db, "families", id));
   };
 
-  const startEdit = (item: any, type: "visitor" | "family") => {
+  const startEdit = (
+    item: any,
+    type: "visitor" | "family"
+  ) => {
     if (!canEdit) return;
 
     setEditingType(type);
+
     setEditingId(item.id);
+
     setEditData({
       parentName: item.parentName || "",
       phone: item.phone || "",
       email: item.email || "",
-      children: item.children?.length
-        ? item.children
-        : [{ name: "", age: "" }],
+      children:
+        item.children?.length
+          ? item.children
+          : [{ name: "", age: "" }],
     });
+
     setEditOpen(true);
   };
 
   const closeEdit = () => {
     setEditOpen(false);
+
     setEditingId("");
+
     setEditingType("");
+
     setEditData({
       parentName: "",
       phone: "",
@@ -166,200 +221,313 @@ export default function AdminPage() {
     value: string
   ) => {
     const updated = [...editData.children];
+
     updated[index][field] = value;
-    setEditData({ ...editData, children: updated });
+
+    setEditData({
+      ...editData,
+      children: updated,
+    });
   };
 
   const addEditChild = () => {
     setEditData({
       ...editData,
-      children: [...editData.children, { name: "", age: "" }],
+      children: [
+        ...editData.children,
+        {
+          name: "",
+          age: "",
+        },
+      ],
     });
   };
 
-  const removeEditChild = (index: number) => {
-    if (editData.children.length === 1) return;
+  const removeEditChild = (
+    index: number
+  ) => {
+    if (editData.children.length === 1)
+      return;
 
     setEditData({
       ...editData,
-      children: editData.children.filter((_: any, i: number) => i !== index),
+      children:
+        editData.children.filter(
+          (_: any, i: number) =>
+            i !== index
+        ),
     });
   };
 
   const saveEdit = async () => {
     if (!canEdit) return;
 
-    const collectionName = editingType === "visitor" ? "visitors" : "families";
+    const collectionName =
+      editingType === "visitor"
+        ? "visitors"
+        : "families";
 
-    await updateDoc(doc(db, collectionName, editingId), {
-      parentName: editData.parentName.trim().toUpperCase(),
-      phone: editData.phone,
-      email: editData.email,
-      children: editData.children
-        .map((c: any) => ({
-          name: String(c.name || "").trim().toUpperCase(),
-          age: String(c.age || "").trim(),
-        }))
-        .filter((c: any) => c.name && c.age),
-      updatedAt: new Date(),
-    });
+    await updateDoc(
+      doc(db, collectionName, editingId),
+      {
+        parentName:
+          editData.parentName
+            .trim()
+            .toUpperCase(),
+
+        phone: editData.phone,
+
+        email: editData.email,
+
+        children: editData.children
+          .map((c: any) => ({
+            name: String(
+              c.name || ""
+            )
+              .trim()
+              .toUpperCase(),
+
+            age: String(
+              c.age || ""
+            ).trim(),
+          }))
+          .filter(
+            (c: any) =>
+              c.name && c.age
+          ),
+
+        updatedAt: new Date(),
+      }
+    );
 
     closeEdit();
   };
 
-  const createPDF = async (v: any) => {
-  const children = v.children || [];
-  const declarationNumber = v.declarationNumber || `ZZ-${Date.now()}`;
-  const date = getDate(v);
+  const createPDF = async (
+    v: any,
+    lang: "ru" | "ro"
+  ) => {
+    const children = v.children || [];
 
-  const ruText = `ДЕКЛАРАЦИЯ СОГЛАСИЯ С ПРАВИЛАМИ
+    const declarationNumber =
+      v.declarationNumber ||
+      `ZZ-${Date.now()}`;
 
-посещения и поведения в детском развлекательном комплексе ZIG ZAG
-и обработкой персональных данных.
+    const date = getDate(v);
 
-Подписывая данную декларацию согласия с правилами подтверждаю, что я ознакомлен(а) и согласен(а) с условиями, изложенными в правилах посещения и поведения в детском парке аттракционов ZIG ZAG, доступных для ознакомления на информационном стенде юридических лиц, работающим под брендом «ZIG ZAG» и/или на официальном сайте www.zigzagkids.md комплекса и являющихся неотъемлемой частью настоящей декларации согласия с правилами.
+    const declarationText =
+      lang === "ru"
+        ? v.declarationTextRu ||
+          v.declarationText ||
+          ""
+        : v.declarationTextRo ||
+          v.declarationText ||
+          "";
 
-Я ознакомился(ась) с правилами парка развлечений ZIG ZAG и ознакомил(а) с ними своего несовершеннолетнего ребенка / детей, которому / которым разрешаю находиться в детском развлекательном комплексе и гарантирую соблюдение правил.
+    const html =
+      document.createElement("div");
 
-Подтверждаю, что ребенок / дети не страдает(-ют) заболеваниями, препятствующими игре и развлечениям. Я принимаю на себя ответственность за возможные риски, связанные с посещением комплекса.
+    html.style.position = "fixed";
+    html.style.left = "-9999px";
+    html.style.top = "0";
+    html.style.width = "794px";
+    html.style.background = "#ffffff";
 
-В соответствии с Законом Республики Молдова №133 «О защите персональных данных», выражаю согласие на обработку персональных данных.`;
+    html.innerHTML = `
+      <div style="width:794px;font-family:Arial,sans-serif;background:white;color:#111827;">
 
-  const roText = `DECLARAȚIE DE ACORD CU REGULAMENTUL
+        <section style="width:794px;min-height:1123px;padding:40px;background:white;">
 
-de vizitare și comportament în complexul de divertisment pentru copii ZIG ZAG
-și de prelucrare a datelor cu caracter personal.
-
-Prin semnarea prezentei declarații confirm că am luat cunoștință și sunt de acord cu condițiile expuse în Regulamentul de vizitare și comportament în parcul de atracții pentru copii ZIG ZAG, disponibil pe panoul informațional și/sau pe site-ul oficial www.zigzagkids.md.
-
-Confirm că am prezentat regulamentul copilului / copiilor mei și garantez că acesta / aceștia vor respecta regulamentul complexului.
-
-Confirm că copilul / copiii nu suferă de boli care ar împiedica participarea la activități. Îmi asum responsabilitatea pentru eventualele riscuri legate de vizitarea complexului.
-
-În conformitate cu Legea Republicii Moldova nr.133 privind protecția datelor cu caracter personal, îmi exprim consimțământul pentru prelucrarea datelor personale.`;
-
-  const html = document.createElement("div");
-  html.style.position = "fixed";
-  html.style.left = "-9999px";
-  html.style.top = "0";
-  html.style.width = "794px";
-  html.style.background = "#ffffff";
-
-  html.innerHTML = `
-    <div style="width:794px;font-family:Arial,sans-serif;color:#111827;background:#fff;">
-
-      <section style="width:794px;height:1123px;position:relative;background:linear-gradient(180deg,#eaf4ff 0%,#ffffff 45%);overflow:hidden;">
-        <div style="position:absolute;top:-120px;right:-120px;width:330px;height:330px;background:#facc15;border-radius:50%;opacity:.9;"></div>
-        <div style="position:absolute;bottom:-150px;left:-130px;width:360px;height:360px;background:#93c5fd;border-radius:50%;opacity:.45;"></div>
-
-        <div style="height:20px;background:#2563eb;"></div>
-
-        <div style="position:relative;padding:38px 54px;">
           <div style="display:flex;justify-content:space-between;align-items:center;">
-            <img src="/logo.png" style="width:245px;max-height:125px;object-fit:contain;" />
 
-            <div style="text-align:right;background:white;border:2px solid #dbeafe;border-radius:22px;padding:16px 20px;box-shadow:0 12px 25px rgba(0,0,0,.08);">
-              <div style="font-size:13px;color:#64748b;font-weight:800;">DECLARATION №</div>
-              <div style="font-size:24px;color:#2563eb;font-weight:900;">${declarationNumber}</div>
-              <div style="font-size:13px;color:#64748b;margin-top:6px;">${date}</div>
+            <img
+              src="/logo.png"
+              style="width:230px;object-fit:contain;"
+            />
+
+            <div
+              style="
+                background:#eff6ff;
+                padding:16px 20px;
+                border-radius:20px;
+                border:2px solid #bfdbfe;
+                text-align:right;
+              "
+            >
+              <div style="font-size:13px;color:#64748b;font-weight:800;">
+                DECLARATION
+              </div>
+
+              <div style="font-size:25px;font-weight:900;color:#2563eb;">
+                ${declarationNumber}
+              </div>
+
+              <div style="font-size:14px;color:#475569;margin-top:5px;">
+                ${date}
+              </div>
+            </div>
+
+          </div>
+                    <div
+            style="
+              margin-top:35px;
+              background:#2563eb;
+              color:white;
+              padding:28px;
+              border-radius:28px;
+            "
+          >
+            <div style="font-size:36px;font-weight:900;">
+              ZIG ZAG Visitor Declaration
+            </div>
+
+            <div style="font-size:17px;margin-top:8px;">
+              ${lang === "ru" ? "Декларация согласия" : "Declarație de acord"}
             </div>
           </div>
 
-          <div style="margin-top:38px;background:#2563eb;color:white;border-radius:28px;padding:26px 30px;box-shadow:0 18px 38px rgba(37,99,235,.28);">
-            <div style="font-size:38px;font-weight:900;line-height:1.1;">ZIG ZAG Visitor Declaration</div>
-            <div style="font-size:17px;opacity:.95;margin-top:8px;">Registration / Family Pass / Consent form</div>
-          </div>
-
-          <div style="margin-top:34px;display:grid;grid-template-columns:1fr 1fr;gap:18px;">
-            <div style="background:white;border:2px solid #dbeafe;border-radius:24px;padding:18px 20px;">
+          <div
+            style="
+              margin-top:30px;
+              display:grid;
+              grid-template-columns:1fr 1fr;
+              gap:16px;
+            "
+          >
+            <div style="border:2px solid #dbeafe;border-radius:22px;padding:16px;">
               <div style="font-size:13px;color:#64748b;font-weight:900;">PARENT</div>
-              <div style="font-size:24px;font-weight:900;margin-top:7px;">${v.parentName || ""}</div>
+              <div style="font-size:22px;font-weight:900;margin-top:6px;">${v.parentName || ""}</div>
             </div>
 
-            <div style="background:white;border:2px solid #dbeafe;border-radius:24px;padding:18px 20px;">
+            <div style="border:2px solid #dbeafe;border-radius:22px;padding:16px;">
               <div style="font-size:13px;color:#64748b;font-weight:900;">PHONE</div>
-              <div style="font-size:24px;font-weight:900;margin-top:7px;">${v.phone || ""}</div>
+              <div style="font-size:22px;font-weight:900;margin-top:6px;">${v.phone || ""}</div>
             </div>
 
-            <div style="background:white;border:2px solid #dbeafe;border-radius:24px;padding:18px 20px;">
+            <div style="border:2px solid #dbeafe;border-radius:22px;padding:16px;">
               <div style="font-size:13px;color:#64748b;font-weight:900;">EMAIL</div>
-              <div style="font-size:21px;font-weight:900;margin-top:7px;">${v.email || ""}</div>
+              <div style="font-size:20px;font-weight:900;margin-top:6px;">${v.email || ""}</div>
             </div>
 
-            <div style="background:white;border:2px solid #dbeafe;border-radius:24px;padding:18px 20px;">
+            <div style="border:2px solid #dbeafe;border-radius:22px;padding:16px;">
               <div style="font-size:13px;color:#64748b;font-weight:900;">FAMILY PASS</div>
-              <div style="font-size:21px;font-weight:900;margin-top:7px;">${v.familyId || "-"}</div>
+              <div style="font-size:20px;font-weight:900;margin-top:6px;">${v.familyId || "-"}</div>
             </div>
           </div>
 
-          <div style="margin-top:38px;">
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
-              <div style="width:12px;height:36px;background:#facc15;border-radius:20px;"></div>
-              <div style="font-size:32px;font-weight:900;color:#111827;">Children</div>
+          <div style="margin-top:34px;">
+            <div style="font-size:28px;font-weight:900;margin-bottom:14px;">
+              Children
             </div>
 
-            <table style="width:100%;border-collapse:separate;border-spacing:0 11px;font-size:18px;">
+            <table style="width:100%;border-collapse:separate;border-spacing:0 10px;font-size:17px;">
               <thead>
                 <tr>
-                  <th style="background:#2563eb;color:white;padding:13px;border-radius:16px 0 0 16px;">№</th>
-                  <th style="background:#2563eb;color:white;padding:13px;">Name</th>
-                  <th style="background:#2563eb;color:white;padding:13px;border-radius:0 16px 16px 0;">Age</th>
+                  <th style="background:#2563eb;color:white;padding:12px;border-radius:14px 0 0 14px;">№</th>
+                  <th style="background:#2563eb;color:white;padding:12px;">Name</th>
+                  <th style="background:#2563eb;color:white;padding:12px;border-radius:0 14px 14px 0;">Age</th>
                 </tr>
               </thead>
+
               <tbody>
                 ${
                   children.length
-                    ? children.map((c: any, i: number) => `
+                    ? children
+                        .map(
+                          (c: any, i: number) => `
+                            <tr>
+                              <td style="background:#f8fafc;padding:14px;text-align:center;font-weight:900;border-radius:14px 0 0 14px;">
+                                ${i + 1}
+                              </td>
+
+                              <td style="background:#f8fafc;padding:14px;font-weight:900;">
+                                ${c.name || ""}
+                              </td>
+
+                              <td style="background:#f8fafc;padding:14px;font-weight:900;border-radius:0 14px 14px 0;">
+                                ${c.age || ""}
+                              </td>
+                            </tr>
+                          `
+                        )
+                        .join("")
+                    : `
                       <tr>
-                        <td style="background:#f8fafc;padding:15px;text-align:center;font-weight:900;border-radius:16px 0 0 16px;">${i + 1}</td>
-                        <td style="background:#f8fafc;padding:15px;font-weight:900;">${c.name || ""}</td>
-                        <td style="background:#f8fafc;padding:15px;font-weight:900;border-radius:0 16px 16px 0;">${c.age || ""}</td>
+                        <td colspan="3" style="background:#f8fafc;padding:14px;text-align:center;border-radius:14px;">
+                          No children
+                        </td>
                       </tr>
-                    `).join("")
-                    : `<tr><td colspan="3" style="background:#f8fafc;padding:16px;text-align:center;border-radius:16px;">No children</td></tr>`
+                    `
                 }
               </tbody>
             </table>
           </div>
-        </div>
 
-        <div style="position:absolute;left:0;right:0;bottom:0;background:#2563eb;color:white;padding:16px;text-align:center;font-size:17px;font-weight:900;">
-          ZIG ZAG KIDS PARK · VISITOR DECLARATION
-        </div>
-      </section>
+        </section>
 
-      <section style="width:794px;min-height:1123px;background:#ffffff;page-break-before:always;position:relative;">
-        <div style="height:20px;background:#2563eb;"></div>
+        <section style="width:794px;min-height:1123px;padding:40px;background:white;page-break-before:always;">
 
-        <div style="padding:30px 50px 95px 50px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-            <img src="/logo.png" style="width:170px;max-height:90px;object-fit:contain;" />
+            <img
+              src="/logo.png"
+              style="width:170px;object-fit:contain;"
+            />
 
-            <div style="text-align:right;color:#475569;font-size:14px;line-height:1.5;">
-              <b style="color:#111827;">${declarationNumber}</b><br/>
+            <div style="text-align:right;font-size:14px;color:#475569;">
+              <b>${declarationNumber}</b><br/>
               ${date}
             </div>
           </div>
 
-          <div style="text-align:center;margin-bottom:20px;">
-            <div style="font-size:30px;color:#111827;font-weight:900;">Декларация / Declarație</div>
-            <div style="height:5px;width:150px;background:#facc15;margin:13px auto 0 auto;border-radius:20px;"></div>
-          </div>
-
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
-            <div style="border:2px solid #dbeafe;background:#f8fbff;border-radius:22px;padding:18px;font-size:12.5px;line-height:1.45;text-align:justify;white-space:pre-line;">
-              ${ruText}
+          <div style="text-align:center;margin-bottom:24px;">
+            <div style="font-size:30px;font-weight:900;">
+              ${lang === "ru" ? "Декларация согласия" : "Declarație de acord"}
             </div>
 
-            <div style="border:2px solid #dbeafe;background:#f8fbff;border-radius:22px;padding:18px;font-size:12.5px;line-height:1.45;text-align:justify;white-space:pre-line;">
-              ${roText}
-            </div>
+            <div
+              style="
+                height:5px;
+                width:150px;
+                background:#facc15;
+                border-radius:20px;
+                margin:12px auto 0 auto;
+              "
+            ></div>
           </div>
 
-          <div style="margin-top:24px;display:grid;grid-template-columns:1fr 240px;gap:26px;align-items:end;">
+          <div
+            style="
+              border:2px solid #dbeafe;
+              background:#f8fbff;
+              border-radius:24px;
+              padding:24px;
+              font-size:14px;
+              line-height:1.55;
+              text-align:justify;
+              white-space:pre-line;
+              min-height:650px;
+            "
+          >
+            ${declarationText}
+          </div>
+
+          <div style="margin-top:26px;display:grid;grid-template-columns:1fr 240px;gap:24px;align-items:end;">
             <div>
-              <div style="font-size:18px;font-weight:900;color:#111827;margin-bottom:10px;">Parent Signature / Semnătura</div>
-              <div style="height:118px;border:3px dashed #94a3b8;border-radius:22px;background:#fff;display:flex;align-items:center;justify-content:center;">
+              <div style="font-size:18px;font-weight:900;margin-bottom:10px;">
+                ${lang === "ru" ? "Подпись родителя" : "Semnătura părintelui"}
+              </div>
+
+              <div
+                style="
+                  height:118px;
+                  border:3px dashed #94a3b8;
+                  border-radius:22px;
+                  background:white;
+                  display:flex;
+                  align-items:center;
+                  justify-content:center;
+                "
+              >
                 ${
                   v.signature
                     ? `<img src="${v.signature}" style="max-width:330px;max-height:96px;object-fit:contain;" />`
@@ -368,90 +536,131 @@ Confirm că copilul / copiii nu suferă de boli care ar împiedica participarea 
               </div>
             </div>
 
-            <div style="background:#eff6ff;border:2px solid #dbeafe;border-radius:22px;padding:18px;font-size:14px;color:#475569;line-height:1.5;">
-              <b style="color:#111827;">Parent:</b><br/>
+            <div
+              style="
+                background:#eff6ff;
+                border:2px solid #dbeafe;
+                border-radius:22px;
+                padding:18px;
+                font-size:14px;
+                line-height:1.5;
+              "
+            >
+              <b>Parent:</b><br/>
               ${v.parentName || ""}<br/><br/>
-              <b style="color:#111827;">Date:</b><br/>
+
+              <b>Date:</b><br/>
               ${date}
             </div>
           </div>
-        </div>
 
-        <div style="position:absolute;left:0;right:0;bottom:0;background:#2563eb;color:white;padding:17px 42px;font-size:17px;text-align:center;font-weight:900;">
-          THANK YOU FOR CHOOSING ZIG ZAG KIDS PARK
-        </div>
-      </section>
-    </div>
-  `;
+        </section>
 
-  document.body.appendChild(html);
+      </div>
+    `;
 
-  const canvas = await html2canvas(html, {
-    scale: 2,
-    useCORS: true,
-    backgroundColor: "#ffffff",
-  });
+    document.body.appendChild(html);
 
-  document.body.removeChild(html);
+    const canvas = await html2canvas(html, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+    });
 
-  const imgData = canvas.toDataURL("image/png");
-  const pdf = new jsPDF("p", "mm", "a4");
+    document.body.removeChild(html);
 
-  const pageWidth = 210;
-  const pageHeight = 297;
-  const imgWidth = pageWidth;
-  const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    const imgData = canvas.toDataURL("image/png");
 
-  let heightLeft = imgHeight;
-  let position = 0;
+    const pdf = new jsPDF("p", "mm", "a4");
 
-  pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-  heightLeft -= pageHeight;
+    const pageWidth = 210;
+    const pageHeight = 297;
+    const imgWidth = pageWidth;
+    const imgHeight =
+      (canvas.height * imgWidth) / canvas.width;
 
-  while (heightLeft > 0) {
-    position -= pageHeight;
-    pdf.addPage();
-    pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+    let heightLeft = imgHeight;
+    let position = 0;
+
+    pdf.addImage(
+      imgData,
+      "PNG",
+      0,
+      position,
+      imgWidth,
+      imgHeight
+    );
+
     heightLeft -= pageHeight;
-  }
 
-  pdf.save(`${declarationNumber}-${v.parentName || "visitor"}.pdf`);
-};;
+    while (heightLeft > 0) {
+      position -= pageHeight;
 
-  const filteredVisitors = visitors.filter((v) => {
-    const childrenText = (v.children || [])
-      .map((c: any) => `${c.name} ${c.age}`)
-      .join(" ");
+      pdf.addPage();
 
-    return `${v.declarationNumber || ""} ${v.familyId || ""} ${
-      v.parentName || ""
-    } ${v.phone || ""} ${v.email || ""} ${childrenText}`
-      .toLowerCase()
-      .includes(search.toLowerCase());
-  });
+      pdf.addImage(
+        imgData,
+        "PNG",
+        0,
+        position,
+        imgWidth,
+        imgHeight
+      );
 
-  const filteredFamilies = families.filter((f) => {
-    const childrenText = (f.children || [])
-      .map((c: any) => `${c.name} ${c.age}`)
-      .join(" ");
+      heightLeft -= pageHeight;
+    }
 
-    return `${f.familyId || ""} ${f.parentName || ""} ${f.phone || ""} ${
-      f.email || ""
-    } ${childrenText}`
-      .toLowerCase()
-      .includes(search.toLowerCase());
-  });
+    pdf.save(
+      `${declarationNumber}-${
+        lang === "ru" ? "RU" : "RO"
+      }.pdf`
+    );
+  };
+
+  const filteredVisitors =
+    visitors.filter((v) => {
+      const childrenText = (v.children || [])
+        .map((c: any) => `${c.name} ${c.age}`)
+        .join(" ");
+
+      return `${v.declarationNumber || ""} ${
+        v.familyId || ""
+      } ${v.parentName || ""} ${v.phone || ""} ${
+        v.email || ""
+      } ${childrenText}`
+        .toLowerCase()
+        .includes(search.toLowerCase());
+    });
+
+  const filteredFamilies =
+    families.filter((f) => {
+      const childrenText = (f.children || [])
+        .map((c: any) => `${c.name} ${c.age}`)
+        .join(" ");
+
+      return `${f.familyId || ""} ${
+        f.parentName || ""
+      } ${f.phone || ""} ${
+        f.email || ""
+      } ${childrenText}`
+        .toLowerCase()
+        .includes(search.toLowerCase());
+    });
 
   const exportExcel = () => {
     if (!canExport) return;
 
-    const data = tab === "visitors" ? filteredVisitors : filteredFamilies;
+    const data =
+      tab === "visitors"
+        ? filteredVisitors
+        : filteredFamilies;
 
     const rows = data.map((item) => {
       const children = item.children || [];
 
       const row: any = {
-        "№ декларации": item.declarationNumber || "",
+        "№ декларации":
+          item.declarationNumber || "",
         "Family Pass": item.familyId || "",
         Родитель: item.parentName || "",
         Телефон: item.phone || "",
@@ -459,43 +668,43 @@ Confirm că copilul / copiii nu suferă de boli care ar împiedica participarea 
         Дата: getDate(item),
       };
 
-      children.forEach((child: any, index: number) => {
-        row[`Ребёнок ${index + 1}`] = child.name || "";
-        row[`Возраст ${index + 1}`] = child.age || "";
-      });
+      children.forEach(
+        (child: any, index: number) => {
+          row[`Ребёнок ${index + 1}`] =
+            child.name || "";
+          row[`Возраст ${index + 1}`] =
+            child.age || "";
+        }
+      );
 
       return row;
     });
 
     const ws = XLSX.utils.json_to_sheet(rows);
+
     const wb = XLSX.utils.book_new();
 
     XLSX.utils.book_append_sheet(
       wb,
       ws,
-      tab === "visitors" ? "Visitors" : "Family Pass"
+      tab === "visitors"
+        ? "Visitors"
+        : "Family Pass"
     );
 
     XLSX.writeFile(
       wb,
-      tab === "visitors" ? "zigzag-visitors.xlsx" : "zigzag-family-pass.xlsx"
+      tab === "visitors"
+        ? "zigzag-visitors.xlsx"
+        : "zigzag-family-pass.xlsx"
     );
   };
 
-  const today = new Date().toDateString();
+  const today =
+    new Date().toDateString();
 
-  const todayVisitors = visitors.filter((v) => {
-    if (!v.createdAt) return false;
-
-    const d = v.createdAt?.toDate
-      ? v.createdAt.toDate()
-      : new Date(v.createdAt);
-
-    return d.toDateString() === today;
-  }).length;
-
-  const todayChildren = visitors
-    .filter((v) => {
+  const todayVisitors =
+    visitors.filter((v) => {
       if (!v.createdAt) return false;
 
       const d = v.createdAt?.toDate
@@ -503,19 +712,40 @@ Confirm că copilul / copiii nu suferă de boli care ar împiedica participarea 
         : new Date(v.createdAt);
 
       return d.toDateString() === today;
-    })
-    .reduce((sum, v) => sum + (v.children?.length || 0), 0);
+    }).length;
 
-  const totalChildren = visitors.reduce(
-    (sum, v) => sum + (v.children?.length || 0),
-    0
-  );
+  const todayChildren =
+    visitors
+      .filter((v) => {
+        if (!v.createdAt) return false;
 
-  const totalFamilyChildren = families.reduce(
-    (sum, f) => sum + (f.children?.length || 0),
-    0
-  );
-    if (loading) {
+        const d = v.createdAt?.toDate
+          ? v.createdAt.toDate()
+          : new Date(v.createdAt);
+
+        return d.toDateString() === today;
+      })
+      .reduce(
+        (sum, v) =>
+          sum + (v.children?.length || 0),
+        0
+      );
+
+  const totalChildren =
+    visitors.reduce(
+      (sum, v) =>
+        sum + (v.children?.length || 0),
+      0
+    );
+
+  const totalFamilyChildren =
+    families.reduce(
+      (sum, f) =>
+        sum + (f.children?.length || 0),
+      0
+    );
+
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center text-3xl font-bold text-black">
         Загрузка админки...
@@ -578,47 +808,59 @@ Confirm că copilul / copiii nu suferă de boli care ar împiedica participarea 
             />
 
             <div className="grid gap-4">
-              {editData.children.map((child: any, index: number) => (
-                <div
-                  key={index}
-                  className="bg-blue-50 rounded-2xl p-4 grid gap-3"
-                >
-                  <div className="flex justify-between items-center">
-                    <p className="text-2xl font-bold text-black">
-                      Ребёнок {index + 1}
-                    </p>
+              {editData.children.map(
+                (child: any, index: number) => (
+                  <div
+                    key={index}
+                    className="bg-blue-50 rounded-2xl p-4 grid gap-3"
+                  >
+                    <div className="flex justify-between items-center">
+                      <p className="text-2xl font-bold text-black">
+                        Ребёнок {index + 1}
+                      </p>
 
-                    {editData.children.length > 1 && (
-                      <button
-                        onClick={() => removeEditChild(index)}
-                        className="bg-red-500 text-white px-5 py-2 rounded-xl text-2xl font-black"
-                      >
-                        −
-                      </button>
-                    )}
+                      {editData.children.length > 1 && (
+                        <button
+                          onClick={() =>
+                            removeEditChild(index)
+                          }
+                          className="bg-red-500 text-white px-5 py-2 rounded-xl text-2xl font-black"
+                        >
+                          −
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <input
+                        value={child.name}
+                        onChange={(e) =>
+                          updateEditChild(
+                            index,
+                            "name",
+                            e.target.value
+                          )
+                        }
+                        placeholder="Имя ребёнка"
+                        className="p-4 rounded-2xl border text-2xl text-black"
+                      />
+
+                      <input
+                        value={child.age}
+                        onChange={(e) =>
+                          updateEditChild(
+                            index,
+                            "age",
+                            e.target.value
+                          )
+                        }
+                        placeholder="Возраст"
+                        className="p-4 rounded-2xl border text-2xl text-black"
+                      />
+                    </div>
                   </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <input
-                      value={child.name}
-                      onChange={(e) =>
-                        updateEditChild(index, "name", e.target.value)
-                      }
-                      placeholder="Имя ребёнка"
-                      className="p-4 rounded-2xl border text-2xl text-black"
-                    />
-
-                    <input
-                      value={child.age}
-                      onChange={(e) =>
-                        updateEditChild(index, "age", e.target.value)
-                      }
-                      placeholder="Возраст"
-                      className="p-4 rounded-2xl border text-2xl text-black"
-                    />
-                  </div>
-                </div>
-              ))}
+                )
+              )}
             </div>
 
             <button
@@ -663,7 +905,9 @@ Confirm că copilul / copiii nu suferă de boli care ar împiedica participarea 
             type="text"
             placeholder="Поиск по номеру, имени, телефону..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) =>
+              setSearch(e.target.value)
+            }
             className="p-3 rounded-xl border text-xl text-black w-full md:w-96"
           />
 
@@ -713,35 +957,45 @@ Confirm că copilul / copiii nu suferă de boli care ar împiedica participarea 
         <>
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-5">
             <div className="bg-white rounded-2xl shadow-md p-5 border">
-              <p className="text-gray-500 text-xl">Регистраций</p>
+              <p className="text-gray-500 text-xl">
+                Регистраций
+              </p>
               <p className="text-5xl font-bold text-black">
                 {visitors.length}
               </p>
             </div>
 
             <div className="bg-white rounded-2xl shadow-md p-5 border">
-              <p className="text-gray-500 text-xl">Сегодня</p>
+              <p className="text-gray-500 text-xl">
+                Сегодня
+              </p>
               <p className="text-5xl font-bold text-black">
                 {todayVisitors}
               </p>
             </div>
 
             <div className="bg-white rounded-2xl shadow-md p-5 border">
-              <p className="text-gray-500 text-xl">Детей сегодня</p>
+              <p className="text-gray-500 text-xl">
+                Детей сегодня
+              </p>
               <p className="text-5xl font-bold text-black">
                 {todayChildren}
               </p>
             </div>
 
             <div className="bg-white rounded-2xl shadow-md p-5 border">
-              <p className="text-gray-500 text-xl">Всего детей</p>
+              <p className="text-gray-500 text-xl">
+                Всего детей
+              </p>
               <p className="text-5xl font-bold text-black">
                 {totalChildren}
               </p>
             </div>
 
             <div className="bg-white rounded-2xl shadow-md p-5 border">
-              <p className="text-gray-500 text-xl">Найдено</p>
+              <p className="text-gray-500 text-xl">
+                Найдено
+              </p>
               <p className="text-5xl font-bold text-black">
                 {filteredVisitors.length}
               </p>
@@ -793,11 +1047,17 @@ Confirm că copilul / copiii nu suferă de boli care ar împiedica participarea 
                     👶 Дети:
                   </p>
 
-                  {(v.children || []).map((child: any, index: number) => (
-                    <p key={index} className="text-xl text-black">
-                      {index + 1}. <b>{child.name}</b> — {child.age} лет
-                    </p>
-                  ))}
+                  {(v.children || []).map(
+                    (child: any, index: number) => (
+                      <p
+                        key={index}
+                        className="text-xl text-black"
+                      >
+                        {index + 1}. <b>{child.name}</b> —{" "}
+                        {child.age} лет
+                      </p>
+                    )
+                  )}
                 </div>
 
                 {v.signature && (
@@ -811,22 +1071,35 @@ Confirm că copilul / copiii nu suferă de boli care ar împiedica participarea 
                 <div
                   className={`grid gap-3 mt-4 ${
                     canEdit && canDelete
+                      ? "grid-cols-4"
+                      : canEdit
                       ? "grid-cols-3"
-                      : canEdit || canDelete
-                      ? "grid-cols-2"
-                      : "grid-cols-1"
+                      : "grid-cols-2"
                   }`}
                 >
                   <button
-                    onClick={() => createPDF(v)}
+                    onClick={() =>
+                      createPDF(v, "ru")
+                    }
+                    className="bg-blue-600 text-white p-3 rounded-xl text-xl font-bold"
+                  >
+                    PDF RU
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      createPDF(v, "ro")
+                    }
                     className="bg-green-600 text-white p-3 rounded-xl text-xl font-bold"
                   >
-                    PDF
+                    PDF RO
                   </button>
 
                   {canEdit && (
                     <button
-                      onClick={() => startEdit(v, "visitor")}
+                      onClick={() =>
+                        startEdit(v, "visitor")
+                      }
                       className="bg-yellow-500 text-black p-3 rounded-xl text-xl font-bold"
                     >
                       Редактировать
@@ -835,7 +1108,9 @@ Confirm că copilul / copiii nu suferă de boli care ar împiedica participarea 
 
                   {canDelete && (
                     <button
-                      onClick={() => deleteVisitor(v.id)}
+                      onClick={() =>
+                        deleteVisitor(v.id)
+                      }
                       className="bg-red-600 text-white p-3 rounded-xl text-xl font-bold"
                     >
                       Удалить
@@ -852,21 +1127,27 @@ Confirm că copilul / copiii nu suferă de boli care ar împiedica participarea 
         <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
             <div className="bg-white rounded-2xl shadow-md p-5 border">
-              <p className="text-gray-500 text-xl">Family Pass</p>
+              <p className="text-gray-500 text-xl">
+                Family Pass
+              </p>
               <p className="text-5xl font-bold text-black">
                 {families.length}
               </p>
             </div>
 
             <div className="bg-white rounded-2xl shadow-md p-5 border">
-              <p className="text-gray-500 text-xl">Детей</p>
+              <p className="text-gray-500 text-xl">
+                Детей
+              </p>
               <p className="text-5xl font-bold text-black">
                 {totalFamilyChildren}
               </p>
             </div>
 
             <div className="bg-white rounded-2xl shadow-md p-5 border">
-              <p className="text-gray-500 text-xl">Найдено</p>
+              <p className="text-gray-500 text-xl">
+                Найдено
+              </p>
               <p className="text-5xl font-bold text-black">
                 {filteredFamilies.length}
               </p>
@@ -918,11 +1199,17 @@ Confirm că copilul / copiii nu suferă de boli care ar împiedica participarea 
                     👶 Дети:
                   </p>
 
-                  {(f.children || []).map((child: any, index: number) => (
-                    <p key={index} className="text-xl text-black">
-                      {index + 1}. <b>{child.name}</b> — {child.age} лет
-                    </p>
-                  ))}
+                  {(f.children || []).map(
+                    (child: any, index: number) => (
+                      <p
+                        key={index}
+                        className="text-xl text-black"
+                      >
+                        {index + 1}. <b>{child.name}</b> —{" "}
+                        {child.age} лет
+                      </p>
+                    )
+                  )}
                 </div>
 
                 {f.lastSignature && (
@@ -943,7 +1230,9 @@ Confirm că copilul / copiii nu suferă de boli care ar împiedica participarea 
                   >
                     {canEdit && (
                       <button
-                        onClick={() => startEdit(f, "family")}
+                        onClick={() =>
+                          startEdit(f, "family")
+                        }
                         className="bg-yellow-500 text-black p-3 rounded-xl text-xl font-bold"
                       >
                         Редактировать
@@ -952,7 +1241,9 @@ Confirm că copilul / copiii nu suferă de boli care ar împiedica participarea 
 
                     {canDelete && (
                       <button
-                        onClick={() => deleteFamily(f.id)}
+                        onClick={() =>
+                          deleteFamily(f.id)
+                        }
                         className="bg-red-600 text-white p-3 rounded-xl text-xl font-bold"
                       >
                         Удалить
