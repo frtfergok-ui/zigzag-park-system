@@ -22,12 +22,7 @@ export default function AdminPage() {
   const [families, setFamilies] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
-
   const [adminRole, setAdminRole] = useState<AdminRole>("cashier");
-
-  const [editingId, setEditingId] = useState("");
-  const [editingType, setEditingType] = useState<"visitor" | "family" | "">("");
-  const [editData, setEditData] = useState<any>(null);
 
   const auth = getAuth(app);
 
@@ -89,8 +84,11 @@ export default function AdminPage() {
 
   const getDate = (v: any) => {
     const dateValue = v.lastVisit || v.updatedAt || v.createdAt;
+
     if (!dateValue) return "";
+
     if (dateValue?.toDate) return dateValue.toDate().toLocaleString();
+
     return new Date(dateValue).toLocaleString();
   };
 
@@ -109,68 +107,49 @@ export default function AdminPage() {
     await deleteDoc(doc(db, "families", id));
   };
 
-  const startEdit = (item: any, type: "visitor" | "family") => {
+  const startEdit = async (item: any, type: "visitor" | "family") => {
     if (!canEdit) return;
 
-    setEditingId(item.id);
-    setEditingType(type);
-    setEditData({
-      parentName: item.parentName || "",
-      phone: item.phone || "",
-      email: item.email || "",
-      children: item.children?.length ? item.children : [{ name: "", age: "" }],
-    });
-  };
+    const parentName = prompt("Родитель:", item.parentName || "");
+    if (parentName === null) return;
 
-  const cancelEdit = () => {
-    setEditingId("");
-    setEditingType("");
-    setEditData(null);
-  };
+    const phone = prompt("Телефон:", item.phone || "");
+    if (phone === null) return;
 
-  const updateEditChild = (
-    index: number,
-    field: "name" | "age",
-    value: string
-  ) => {
-    const updated = [...editData.children];
-    updated[index][field] = value;
-    setEditData({ ...editData, children: updated });
-  };
+    const email = prompt("Email:", item.email || "");
+    if (email === null) return;
 
-  const addEditChild = () => {
-    setEditData({
-      ...editData,
-      children: [...editData.children, { name: "", age: "" }],
-    });
-  };
+    const oldChildren = (item.children || [])
+      .map((c: any) => `${c.name}:${c.age}`)
+      .join(", ");
 
-  const removeEditChild = (index: number) => {
-    if (editData.children.length === 1) return;
+    const childrenText = prompt(
+      "Дети в формате ИМЯ:ВОЗРАСТ, ИМЯ:ВОЗРАСТ",
+      oldChildren
+    );
 
-    setEditData({
-      ...editData,
-      children: editData.children.filter((_: any, i: number) => i !== index),
-    });
-  };
+    if (childrenText === null) return;
 
-  const saveEdit = async () => {
-    if (!canEdit) return;
+    const children = childrenText
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .map((part) => {
+        const [name, age] = part.split(":");
+        return {
+          name: String(name || "").trim().toUpperCase(),
+          age: String(age || "").trim(),
+        };
+      })
+      .filter((c) => c.name && c.age);
 
-    const collectionName = editingType === "visitor" ? "visitors" : "families";
-
-    await updateDoc(doc(db, collectionName, editingId), {
-      parentName: editData.parentName.trim().toUpperCase(),
-      phone: editData.phone,
-      email: editData.email,
-      children: editData.children.map((c: any) => ({
-        name: String(c.name || "").trim().toUpperCase(),
-        age: String(c.age || "").trim(),
-      })),
+    await updateDoc(doc(db, type === "visitor" ? "visitors" : "families", item.id), {
+      parentName: parentName.trim().toUpperCase(),
+      phone,
+      email,
+      children,
       updatedAt: new Date(),
     });
-
-    cancelEdit();
   };
 
   const createPDF = (v: any) => {
@@ -200,7 +179,7 @@ export default function AdminPage() {
     let y = 124;
 
     (v.children || []).forEach((child: any, index: number) => {
-      pdf.text(`${index + 1}. ${child.name} — ${child.age}`, 20, y);
+      pdf.text(`${index + 1}. ${child.name} - ${child.age}`, 20, y);
       y += 8;
     });
 
@@ -221,45 +200,6 @@ export default function AdminPage() {
     }
 
     pdf.save(`${v.declarationNumber || "declaration"}.pdf`);
-  };
-
-  const exportExcel = () => {
-    if (!canExport) return;
-
-    const data = tab === "visitors" ? filteredVisitors : filteredFamilies;
-
-    const rows = data.map((item) => {
-      const children = item.children || [];
-
-      return {
-        "№ декларации": item.declarationNumber || "",
-        "Family Pass": item.familyId || "",
-        Родитель: item.parentName || "",
-        Телефон: item.phone || "",
-        Email: item.email || "",
-        "Ребёнок 1": children[0]?.name || "",
-        "Возраст 1": children[0]?.age || "",
-        "Ребёнок 2": children[1]?.name || "",
-        "Возраст 2": children[1]?.age || "",
-        "Ребёнок 3": children[2]?.name || "",
-        "Возраст 3": children[2]?.age || "",
-        Дата: getDate(item),
-      };
-    });
-
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-
-    XLSX.utils.book_append_sheet(
-      wb,
-      ws,
-      tab === "visitors" ? "Visitors" : "Family Pass"
-    );
-
-    XLSX.writeFile(
-      wb,
-      tab === "visitors" ? "zigzag-visitors.xlsx" : "zigzag-family-pass.xlsx"
-    );
   };
 
   const filteredVisitors = visitors.filter((v) => {
@@ -286,120 +226,74 @@ export default function AdminPage() {
       .includes(search.toLowerCase());
   });
 
+  const exportExcel = () => {
+    if (!canExport) return;
+
+    const data = tab === "visitors" ? filteredVisitors : filteredFamilies;
+
+    const rows = data.map((item) => {
+      const children = item.children || [];
+
+      const row: any = {
+        "№ декларации": item.declarationNumber || "",
+        "Family Pass": item.familyId || "",
+        Родитель: item.parentName || "",
+        Телефон: item.phone || "",
+        Email: item.email || "",
+        Дата: getDate(item),
+      };
+
+      children.forEach((child: any, index: number) => {
+        row[`Ребёнок ${index + 1}`] = child.name || "";
+        row[`Возраст ${index + 1}`] = child.age || "";
+      });
+
+      return row;
+    });
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(
+      wb,
+      ws,
+      tab === "visitors" ? "Visitors" : "Family Pass"
+    );
+
+    XLSX.writeFile(
+      wb,
+      tab === "visitors" ? "zigzag-visitors.xlsx" : "zigzag-family-pass.xlsx"
+    );
+  };
+
   const today = new Date().toDateString();
 
   const todayVisitors = visitors.filter((v) => {
     if (!v.createdAt) return false;
-    const d = v.createdAt?.toDate ? v.createdAt.toDate() : new Date(v.createdAt);
+
+    const d = v.createdAt?.toDate
+      ? v.createdAt.toDate()
+      : new Date(v.createdAt);
+
     return d.toDateString() === today;
   }).length;
 
-  const totalChildren = visitors.reduce(
-    (sum, v) => sum + (v.children?.length || 0),
-    0
-  );
+  const todayChildren = visitors
+    .filter((v) => {
+      if (!v.createdAt) return false;
+
+      const d = v.createdAt?.toDate
+        ? v.createdAt.toDate()
+        : new Date(v.createdAt);
+
+      return d.toDateString() === today;
+    })
+    .reduce((sum, v) => sum + (v.children?.length || 0), 0);
 
   const totalFamilyChildren = families.reduce(
     (sum, f) => sum + (f.children?.length || 0),
     0
   );
-// eslint-disable-next-line react/no-unstable-nested-components
-  const EditForm = ({
-    item,
-    type,
-  }: {
-    item: any;
-    type: "visitor" | "family";
-  }) => {
-    if (editingId !== item.id || editingType !== type || !editData) return null;
-
-    return (
-      <div className="mt-4 bg-yellow-50 rounded-2xl p-4 grid gap-3 border-2 border-yellow-200">
-        <input
-          value={editData.parentName}
-          onChange={(e) =>
-            setEditData({ ...editData, parentName: e.target.value })
-          }
-          placeholder="Родитель"
-          className="p-4 rounded-xl border text-xl text-black"
-        />
-
-        <input
-          value={editData.phone}
-          onChange={(e) =>
-            setEditData({ ...editData, phone: e.target.value })
-          }
-          placeholder="Телефон"
-          className="p-4 rounded-xl border text-xl text-black"
-        />
-
-        <input
-          value={editData.email}
-          onChange={(e) =>
-            setEditData({ ...editData, email: e.target.value })
-          }
-          placeholder="Email"
-          className="p-4 rounded-xl border text-xl text-black"
-        />
-
-        {editData.children.map((child: any, index: number) => (
-          <div key={index} className="grid grid-cols-3 gap-2">
-            <input
-              value={child.name}
-              onChange={(e) =>
-                updateEditChild(index, "name", e.target.value)
-              }
-              placeholder="Имя ребёнка"
-              className="p-3 rounded-xl border text-xl text-black"
-            />
-
-            <input
-              value={child.age}
-              onChange={(e) =>
-                updateEditChild(index, "age", e.target.value)
-              }
-              placeholder="Возраст"
-              className="p-3 rounded-xl border text-xl text-black"
-            />
-
-            <button
-              type="button"
-              onClick={() => removeEditChild(index)}
-              className="bg-red-500 text-white rounded-xl text-xl font-bold"
-            >
-              −
-            </button>
-          </div>
-        ))}
-
-        <button
-          type="button"
-          onClick={addEditChild}
-          className="bg-green-600 text-white p-3 rounded-xl text-xl font-bold"
-        >
-          + Добавить ребёнка
-        </button>
-
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={saveEdit}
-            className="bg-blue-600 text-white p-4 rounded-xl text-xl font-bold"
-          >
-            Сохранить
-          </button>
-
-          <button
-            type="button"
-            onClick={cancelEdit}
-            className="bg-gray-400 text-white p-4 rounded-xl text-xl font-bold"
-          >
-            Отмена
-          </button>
-        </div>
-      </div>
-    );
-  };
 
   if (loading) {
     return (
@@ -414,9 +308,7 @@ export default function AdminPage() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-5">
         <div>
           <h1 className="text-4xl font-bold text-black">ADMIN PANEL</h1>
-          <p className="text-lg text-gray-600 font-bold">
-            Role: {adminRole}
-          </p>
+          <p className="text-lg text-gray-600 font-bold">Role: {adminRole}</p>
         </div>
 
         <div className="flex gap-3 flex-col md:flex-row">
@@ -484,8 +376,8 @@ export default function AdminPage() {
             </div>
 
             <div className="bg-white rounded-2xl shadow-md p-5 border">
-              <p className="text-gray-500 text-xl">Детей</p>
-              <p className="text-5xl font-bold text-black">{totalChildren}</p>
+              <p className="text-gray-500 text-xl">Детей сегодня</p>
+              <p className="text-5xl font-bold text-black">{todayChildren}</p>
             </div>
 
             <div className="bg-white rounded-2xl shadow-md p-5 border">
@@ -534,6 +426,7 @@ export default function AdminPage() {
 
                 <div className="mt-4 bg-blue-50 rounded-xl p-4">
                   <p className="text-xl font-bold text-black mb-2">👶 Дети:</p>
+
                   {(v.children || []).map((child: any, index: number) => (
                     <p key={index} className="text-xl text-black">
                       {index + 1}. <b>{child.name}</b> — {child.age} лет
@@ -579,8 +472,6 @@ export default function AdminPage() {
                     </button>
                   )}
                 </div>
-
-                <EditForm item={v} type="visitor" />
               </div>
             ))}
           </div>
@@ -648,6 +539,7 @@ export default function AdminPage() {
 
                 <div className="mt-4 bg-green-50 rounded-xl p-4">
                   <p className="text-xl font-bold text-black mb-2">👶 Дети:</p>
+
                   {(f.children || []).map((child: any, index: number) => (
                     <p key={index} className="text-xl text-black">
                       {index + 1}. <b>{child.name}</b> — {child.age} лет
@@ -688,8 +580,6 @@ export default function AdminPage() {
                     )}
                   </div>
                 )}
-
-                <EditForm item={f} type="family" />
               </div>
             ))}
           </div>
