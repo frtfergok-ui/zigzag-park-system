@@ -24,6 +24,16 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [adminRole, setAdminRole] = useState<AdminRole>("cashier");
 
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingType, setEditingType] = useState<"visitor" | "family" | "">("");
+  const [editingId, setEditingId] = useState("");
+  const [editData, setEditData] = useState<any>({
+    parentName: "",
+    phone: "",
+    email: "",
+    children: [{ name: "", age: "" }],
+  });
+
   const auth = getAuth(app);
 
   const canEdit = adminRole === "owner" || adminRole === "manager";
@@ -59,6 +69,7 @@ export default function AdminPage() {
         const da = a.createdAt?.toDate
           ? a.createdAt.toDate()
           : new Date(a.createdAt || 0);
+
         const dbb = b.createdAt?.toDate
           ? b.createdAt.toDate()
           : new Date(b.createdAt || 0);
@@ -73,6 +84,19 @@ export default function AdminPage() {
     const unsubFamilies = onSnapshot(collection(db, "families"), (snapshot) => {
       const data: any[] = [];
       snapshot.forEach((d) => data.push({ id: d.id, ...d.data() }));
+
+      data.sort((a, b) => {
+        const da = a.lastVisit?.toDate
+          ? a.lastVisit.toDate()
+          : new Date(a.lastVisit || a.updatedAt || 0);
+
+        const dbb = b.lastVisit?.toDate
+          ? b.lastVisit.toDate()
+          : new Date(b.lastVisit || b.updatedAt || 0);
+
+        return dbb.getTime() - da.getTime();
+      });
+
       setFamilies(data);
     });
 
@@ -107,49 +131,79 @@ export default function AdminPage() {
     await deleteDoc(doc(db, "families", id));
   };
 
-  const startEdit = async (item: any, type: "visitor" | "family") => {
+  const startEdit = (item: any, type: "visitor" | "family") => {
     if (!canEdit) return;
 
-    const parentName = prompt("Родитель:", item.parentName || "");
-    if (parentName === null) return;
+    setEditingType(type);
+    setEditingId(item.id);
+    setEditData({
+      parentName: item.parentName || "",
+      phone: item.phone || "",
+      email: item.email || "",
+      children: item.children?.length
+        ? item.children
+        : [{ name: "", age: "" }],
+    });
+    setEditOpen(true);
+  };
 
-    const phone = prompt("Телефон:", item.phone || "");
-    if (phone === null) return;
+  const closeEdit = () => {
+    setEditOpen(false);
+    setEditingId("");
+    setEditingType("");
+    setEditData({
+      parentName: "",
+      phone: "",
+      email: "",
+      children: [{ name: "", age: "" }],
+    });
+  };
 
-    const email = prompt("Email:", item.email || "");
-    if (email === null) return;
+  const updateEditChild = (
+    index: number,
+    field: "name" | "age",
+    value: string
+  ) => {
+    const updated = [...editData.children];
+    updated[index][field] = value;
+    setEditData({ ...editData, children: updated });
+  };
 
-    const oldChildren = (item.children || [])
-      .map((c: any) => `${c.name}:${c.age}`)
-      .join(", ");
+  const addEditChild = () => {
+    setEditData({
+      ...editData,
+      children: [...editData.children, { name: "", age: "" }],
+    });
+  };
 
-    const childrenText = prompt(
-      "Дети в формате ИМЯ:ВОЗРАСТ, ИМЯ:ВОЗРАСТ",
-      oldChildren
-    );
+  const removeEditChild = (index: number) => {
+    if (editData.children.length === 1) return;
 
-    if (childrenText === null) return;
+    setEditData({
+      ...editData,
+      children: editData.children.filter((_: any, i: number) => i !== index),
+    });
+  };
 
-    const children = childrenText
-      .split(",")
-      .map((part) => part.trim())
-      .filter(Boolean)
-      .map((part) => {
-        const [name, age] = part.split(":");
-        return {
-          name: String(name || "").trim().toUpperCase(),
-          age: String(age || "").trim(),
-        };
-      })
-      .filter((c) => c.name && c.age);
+  const saveEdit = async () => {
+    if (!canEdit) return;
 
-    await updateDoc(doc(db, type === "visitor" ? "visitors" : "families", item.id), {
-      parentName: parentName.trim().toUpperCase(),
-      phone,
-      email,
-      children,
+    const collectionName = editingType === "visitor" ? "visitors" : "families";
+
+    await updateDoc(doc(db, collectionName, editingId), {
+      parentName: editData.parentName.trim().toUpperCase(),
+      phone: editData.phone,
+      email: editData.email,
+      children: editData.children
+        .map((c: any) => ({
+          name: String(c.name || "").trim().toUpperCase(),
+          age: String(c.age || "").trim(),
+        }))
+        .filter((c: any) => c.name && c.age),
       updatedAt: new Date(),
     });
+
+    closeEdit();
   };
 
   const createPDF = (v: any) => {
@@ -290,12 +344,16 @@ export default function AdminPage() {
     })
     .reduce((sum, v) => sum + (v.children?.length || 0), 0);
 
+  const totalChildren = visitors.reduce(
+    (sum, v) => sum + (v.children?.length || 0),
+    0
+  );
+
   const totalFamilyChildren = families.reduce(
     (sum, f) => sum + (f.children?.length || 0),
     0
   );
-
-  if (loading) {
+    if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center text-3xl font-bold text-black">
         Загрузка админки...
@@ -305,10 +363,137 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-gray-100 p-5">
+      {editOpen && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl w-full max-w-3xl p-6 grid gap-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-3xl font-black text-black">
+                Редактирование
+              </h2>
+
+              <button
+                onClick={closeEdit}
+                className="bg-red-500 text-white px-5 py-2 rounded-xl text-2xl font-black"
+              >
+                ✕
+              </button>
+            </div>
+
+            <input
+              value={editData.parentName}
+              onChange={(e) =>
+                setEditData({
+                  ...editData,
+                  parentName: e.target.value,
+                })
+              }
+              placeholder="Родитель"
+              className="p-5 rounded-2xl border-2 text-2xl text-black"
+            />
+
+            <input
+              value={editData.phone}
+              onChange={(e) =>
+                setEditData({
+                  ...editData,
+                  phone: e.target.value,
+                })
+              }
+              placeholder="Телефон"
+              className="p-5 rounded-2xl border-2 text-2xl text-black"
+            />
+
+            <input
+              value={editData.email}
+              onChange={(e) =>
+                setEditData({
+                  ...editData,
+                  email: e.target.value,
+                })
+              }
+              placeholder="Email"
+              className="p-5 rounded-2xl border-2 text-2xl text-black"
+            />
+
+            <div className="grid gap-4">
+              {editData.children.map((child: any, index: number) => (
+                <div
+                  key={index}
+                  className="bg-blue-50 rounded-2xl p-4 grid gap-3"
+                >
+                  <div className="flex justify-between items-center">
+                    <p className="text-2xl font-bold text-black">
+                      Ребёнок {index + 1}
+                    </p>
+
+                    {editData.children.length > 1 && (
+                      <button
+                        onClick={() => removeEditChild(index)}
+                        className="bg-red-500 text-white px-5 py-2 rounded-xl text-2xl font-black"
+                      >
+                        −
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <input
+                      value={child.name}
+                      onChange={(e) =>
+                        updateEditChild(index, "name", e.target.value)
+                      }
+                      placeholder="Имя ребёнка"
+                      className="p-4 rounded-2xl border text-2xl text-black"
+                    />
+
+                    <input
+                      value={child.age}
+                      onChange={(e) =>
+                        updateEditChild(index, "age", e.target.value)
+                      }
+                      placeholder="Возраст"
+                      className="p-4 rounded-2xl border text-2xl text-black"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={addEditChild}
+              className="bg-green-600 text-white p-5 rounded-2xl text-2xl font-black"
+            >
+              + Добавить ребёнка
+            </button>
+
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                onClick={closeEdit}
+                className="bg-gray-400 text-white p-5 rounded-2xl text-2xl font-black"
+              >
+                Отмена
+              </button>
+
+              <button
+                onClick={saveEdit}
+                className="bg-blue-600 text-white p-5 rounded-2xl text-2xl font-black"
+              >
+                Сохранить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-5">
         <div>
-          <h1 className="text-4xl font-bold text-black">ADMIN PANEL</h1>
-          <p className="text-lg text-gray-600 font-bold">Role: {adminRole}</p>
+          <h1 className="text-4xl font-bold text-black">
+            ADMIN PANEL
+          </h1>
+
+          <p className="text-lg text-gray-600 font-bold">
+            Role: {adminRole}
+          </p>
         </div>
 
         <div className="flex gap-3 flex-col md:flex-row">
@@ -364,20 +549,33 @@ export default function AdminPage() {
 
       {tab === "visitors" && (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-5">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-5">
             <div className="bg-white rounded-2xl shadow-md p-5 border">
               <p className="text-gray-500 text-xl">Регистраций</p>
-              <p className="text-5xl font-bold text-black">{visitors.length}</p>
+              <p className="text-5xl font-bold text-black">
+                {visitors.length}
+              </p>
             </div>
 
             <div className="bg-white rounded-2xl shadow-md p-5 border">
               <p className="text-gray-500 text-xl">Сегодня</p>
-              <p className="text-5xl font-bold text-black">{todayVisitors}</p>
+              <p className="text-5xl font-bold text-black">
+                {todayVisitors}
+              </p>
             </div>
 
             <div className="bg-white rounded-2xl shadow-md p-5 border">
               <p className="text-gray-500 text-xl">Детей сегодня</p>
-              <p className="text-5xl font-bold text-black">{todayChildren}</p>
+              <p className="text-5xl font-bold text-black">
+                {todayChildren}
+              </p>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-md p-5 border">
+              <p className="text-gray-500 text-xl">Всего детей</p>
+              <p className="text-5xl font-bold text-black">
+                {totalChildren}
+              </p>
             </div>
 
             <div className="bg-white rounded-2xl shadow-md p-5 border">
@@ -410,22 +608,28 @@ export default function AdminPage() {
                   <p className="text-xl">
                     👨 Родитель: <b>{v.parentName}</b>
                   </p>
+
                   <p className="text-xl">
                     📞 Телефон: <b>{v.phone}</b>
                   </p>
+
                   <p className="text-xl">
                     📧 Email: <b>{v.email}</b>
                   </p>
+
                   <p className="text-lg text-gray-500">
                     🌍 Язык: {v.language || "—"}
                   </p>
+
                   <p className="text-lg text-gray-500">
                     📅 Дата: {getDate(v)}
                   </p>
                 </div>
 
                 <div className="mt-4 bg-blue-50 rounded-xl p-4">
-                  <p className="text-xl font-bold text-black mb-2">👶 Дети:</p>
+                  <p className="text-xl font-bold text-black mb-2">
+                    👶 Дети:
+                  </p>
 
                   {(v.children || []).map((child: any, index: number) => (
                     <p key={index} className="text-xl text-black">
@@ -444,7 +648,11 @@ export default function AdminPage() {
 
                 <div
                   className={`grid gap-3 mt-4 ${
-                    canEdit && canDelete ? "grid-cols-3" : "grid-cols-1"
+                    canEdit && canDelete
+                      ? "grid-cols-3"
+                      : canEdit || canDelete
+                      ? "grid-cols-2"
+                      : "grid-cols-1"
                   }`}
                 >
                   <button
@@ -483,13 +691,8 @@ export default function AdminPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
             <div className="bg-white rounded-2xl shadow-md p-5 border">
               <p className="text-gray-500 text-xl">Family Pass</p>
-              <p className="text-5xl font-bold text-black">{families.length}</p>
-            </div>
-
-            <div className="bg-white rounded-2xl shadow-md p-5 border">
-              <p className="text-gray-500 text-xl">Найдено</p>
               <p className="text-5xl font-bold text-black">
-                {filteredFamilies.length}
+                {families.length}
               </p>
             </div>
 
@@ -497,6 +700,13 @@ export default function AdminPage() {
               <p className="text-gray-500 text-xl">Детей</p>
               <p className="text-5xl font-bold text-black">
                 {totalFamilyChildren}
+              </p>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-md p-5 border">
+              <p className="text-gray-500 text-xl">Найдено</p>
+              <p className="text-5xl font-bold text-black">
+                {filteredFamilies.length}
               </p>
             </div>
           </div>
@@ -523,22 +733,28 @@ export default function AdminPage() {
                   <p className="text-xl">
                     👨 Родитель: <b>{f.parentName}</b>
                   </p>
+
                   <p className="text-xl">
                     📞 Телефон: <b>{f.phone}</b>
                   </p>
+
                   <p className="text-xl">
                     📧 Email: <b>{f.email}</b>
                   </p>
+
                   <p className="text-lg text-gray-500">
                     📅 Последний визит: {getDate(f)}
                   </p>
+
                   <p className="text-lg text-gray-500">
                     🔁 Посещений: {f.visitsCount || 0}
                   </p>
                 </div>
 
                 <div className="mt-4 bg-green-50 rounded-xl p-4">
-                  <p className="text-xl font-bold text-black mb-2">👶 Дети:</p>
+                  <p className="text-xl font-bold text-black mb-2">
+                    👶 Дети:
+                  </p>
 
                   {(f.children || []).map((child: any, index: number) => (
                     <p key={index} className="text-xl text-black">
@@ -558,7 +774,9 @@ export default function AdminPage() {
                 {(canEdit || canDelete) && (
                   <div
                     className={`grid gap-3 mt-4 ${
-                      canEdit && canDelete ? "grid-cols-2" : "grid-cols-1"
+                      canEdit && canDelete
+                        ? "grid-cols-2"
+                        : "grid-cols-1"
                     }`}
                   >
                     {canEdit && (
