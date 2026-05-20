@@ -1,5 +1,6 @@
 "use client";
 
+import html2canvas from "html2canvas";
 import { useEffect, useState } from "react";
 import jsPDF from "jspdf";
 import * as XLSX from "xlsx";
@@ -206,55 +207,216 @@ export default function AdminPage() {
     closeEdit();
   };
 
-  const createPDF = (v: any) => {
-    const pdf = new jsPDF("p", "mm", "a4");
+  const createPDF = async (v: any) => {
+  const children = v.children || [];
+  const declarationNumber = v.declarationNumber || `ZZ-${Date.now()}`;
+  const date = getDate(v);
 
-    pdf.setFontSize(22);
-    pdf.text("ZIG ZAG", 15, 18);
+  const ruText = `ДЕКЛАРАЦИЯ СОГЛАСИЯ С ПРАВИЛАМИ
 
-    pdf.setFontSize(12);
-    pdf.text(`Declaration: ${v.declarationNumber || "-"}`, 15, 30);
-    pdf.text(`Family Pass: ${v.familyId || "-"}`, 15, 38);
-    pdf.text(`Date: ${getDate(v)}`, 15, 46);
+посещения и поведения в детском развлекательном комплексе ZIG ZAG
+и обработкой персональных данных.
 
-    pdf.setFontSize(16);
-    pdf.text("Visitor Information", 15, 60);
+Подписывая данную декларацию согласия с правилами подтверждаю, что я ознакомлен(а) и согласен(а) с условиями, изложенными в правилах посещения и поведения в детском парке аттракционов ZIG ZAG, доступных для ознакомления на информационном стенде юридических лиц, работающим под брендом «ZIG ZAG» и/или на официальном сайте www.zigzagkids.md комплекса и являющихся неотъемлемой частью настоящей декларации согласия с правилами.
 
-    pdf.setFontSize(12);
-    pdf.text(`Parent: ${v.parentName || ""}`, 15, 72);
-    pdf.text(`Phone: ${v.phone || ""}`, 15, 80);
-    pdf.text(`Email: ${v.email || ""}`, 15, 88);
-    pdf.text(`Language: ${v.language || ""}`, 15, 96);
+Я ознакомился(ась) с правилами парка развлечений ZIG ZAG и ознакомил(а) с ними своего несовершеннолетнего ребенка / детей, которому / которым разрешаю находиться в детском развлекательном комплексе и гарантирую соблюдение правил.
 
-    pdf.setFontSize(16);
-    pdf.text("Children", 15, 112);
+Подтверждаю, что ребенок / дети не страдает(-ют) заболеваниями, препятствующими игре и развлечениям. Я принимаю на себя ответственность за возможные риски, связанные с посещением комплекса.
 
-    pdf.setFontSize(12);
-    let y = 124;
+В соответствии с Законом Республики Молдова №133 «О защите персональных данных», выражаю согласие на обработку персональных данных.`;
 
-    (v.children || []).forEach((child: any, index: number) => {
-      pdf.text(`${index + 1}. ${child.name} - ${child.age}`, 20, y);
-      y += 8;
-    });
+  const roText = `DECLARAȚIE DE ACORD CU REGULAMENTUL
 
+de vizitare și comportament în complexul de divertisment pentru copii ZIG ZAG
+și de prelucrare a datelor cu caracter personal.
+
+Prin semnarea prezentei declarații confirm că am luat cunoștință și sunt de acord cu condițiile expuse în Regulamentul de vizitare și comportament în parcul de atracții pentru copii ZIG ZAG, disponibil pe panoul informațional și/sau pe site-ul oficial www.zigzagkids.md.
+
+Confirm că am prezentat regulamentul copilului / copiilor mei și garantez că acesta / aceștia vor respecta regulamentul complexului.
+
+Confirm că copilul / copiii nu suferă de boli care ar împiedica participarea la activități. Îmi asum responsabilitatea pentru eventualele riscuri legate de vizitarea complexului.
+
+În conformitate cu Legea Republicii Moldova nr.133 privind protecția datelor cu caracter personal, îmi exprim consimțământul pentru prelucrarea datelor personale.`;
+
+  const html = document.createElement("div");
+  html.style.position = "fixed";
+  html.style.left = "-9999px";
+  html.style.top = "0";
+  html.style.width = "794px";
+  html.style.background = "#ffffff";
+
+  html.innerHTML = `
+    <div style="width:794px;font-family:Arial,sans-serif;color:#111827;background:#fff;">
+
+      <section style="width:794px;height:1123px;position:relative;background:linear-gradient(180deg,#eaf4ff 0%,#ffffff 45%);overflow:hidden;">
+        <div style="position:absolute;top:-120px;right:-120px;width:330px;height:330px;background:#facc15;border-radius:50%;opacity:.9;"></div>
+        <div style="position:absolute;bottom:-150px;left:-130px;width:360px;height:360px;background:#93c5fd;border-radius:50%;opacity:.45;"></div>
+
+        <div style="height:20px;background:#2563eb;"></div>
+
+        <div style="position:relative;padding:38px 54px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <img src="/logo.png" style="width:245px;max-height:125px;object-fit:contain;" />
+
+            <div style="text-align:right;background:white;border:2px solid #dbeafe;border-radius:22px;padding:16px 20px;box-shadow:0 12px 25px rgba(0,0,0,.08);">
+              <div style="font-size:13px;color:#64748b;font-weight:800;">DECLARATION №</div>
+              <div style="font-size:24px;color:#2563eb;font-weight:900;">${declarationNumber}</div>
+              <div style="font-size:13px;color:#64748b;margin-top:6px;">${date}</div>
+            </div>
+          </div>
+
+          <div style="margin-top:38px;background:#2563eb;color:white;border-radius:28px;padding:26px 30px;box-shadow:0 18px 38px rgba(37,99,235,.28);">
+            <div style="font-size:38px;font-weight:900;line-height:1.1;">ZIG ZAG Visitor Declaration</div>
+            <div style="font-size:17px;opacity:.95;margin-top:8px;">Registration / Family Pass / Consent form</div>
+          </div>
+
+          <div style="margin-top:34px;display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+            <div style="background:white;border:2px solid #dbeafe;border-radius:24px;padding:18px 20px;">
+              <div style="font-size:13px;color:#64748b;font-weight:900;">PARENT</div>
+              <div style="font-size:24px;font-weight:900;margin-top:7px;">${v.parentName || ""}</div>
+            </div>
+
+            <div style="background:white;border:2px solid #dbeafe;border-radius:24px;padding:18px 20px;">
+              <div style="font-size:13px;color:#64748b;font-weight:900;">PHONE</div>
+              <div style="font-size:24px;font-weight:900;margin-top:7px;">${v.phone || ""}</div>
+            </div>
+
+            <div style="background:white;border:2px solid #dbeafe;border-radius:24px;padding:18px 20px;">
+              <div style="font-size:13px;color:#64748b;font-weight:900;">EMAIL</div>
+              <div style="font-size:21px;font-weight:900;margin-top:7px;">${v.email || ""}</div>
+            </div>
+
+            <div style="background:white;border:2px solid #dbeafe;border-radius:24px;padding:18px 20px;">
+              <div style="font-size:13px;color:#64748b;font-weight:900;">FAMILY PASS</div>
+              <div style="font-size:21px;font-weight:900;margin-top:7px;">${v.familyId || "-"}</div>
+            </div>
+          </div>
+
+          <div style="margin-top:38px;">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+              <div style="width:12px;height:36px;background:#facc15;border-radius:20px;"></div>
+              <div style="font-size:32px;font-weight:900;color:#111827;">Children</div>
+            </div>
+
+            <table style="width:100%;border-collapse:separate;border-spacing:0 11px;font-size:18px;">
+              <thead>
+                <tr>
+                  <th style="background:#2563eb;color:white;padding:13px;border-radius:16px 0 0 16px;">№</th>
+                  <th style="background:#2563eb;color:white;padding:13px;">Name</th>
+                  <th style="background:#2563eb;color:white;padding:13px;border-radius:0 16px 16px 0;">Age</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${
+                  children.length
+                    ? children.map((c: any, i: number) => `
+                      <tr>
+                        <td style="background:#f8fafc;padding:15px;text-align:center;font-weight:900;border-radius:16px 0 0 16px;">${i + 1}</td>
+                        <td style="background:#f8fafc;padding:15px;font-weight:900;">${c.name || ""}</td>
+                        <td style="background:#f8fafc;padding:15px;font-weight:900;border-radius:0 16px 16px 0;">${c.age || ""}</td>
+                      </tr>
+                    `).join("")
+                    : `<tr><td colspan="3" style="background:#f8fafc;padding:16px;text-align:center;border-radius:16px;">No children</td></tr>`
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div style="position:absolute;left:0;right:0;bottom:0;background:#2563eb;color:white;padding:16px;text-align:center;font-size:17px;font-weight:900;">
+          ZIG ZAG KIDS PARK · VISITOR DECLARATION
+        </div>
+      </section>
+
+      <section style="width:794px;min-height:1123px;background:#ffffff;page-break-before:always;position:relative;">
+        <div style="height:20px;background:#2563eb;"></div>
+
+        <div style="padding:30px 50px 95px 50px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+            <img src="/logo.png" style="width:170px;max-height:90px;object-fit:contain;" />
+
+            <div style="text-align:right;color:#475569;font-size:14px;line-height:1.5;">
+              <b style="color:#111827;">${declarationNumber}</b><br/>
+              ${date}
+            </div>
+          </div>
+
+          <div style="text-align:center;margin-bottom:20px;">
+            <div style="font-size:30px;color:#111827;font-weight:900;">Декларация / Declarație</div>
+            <div style="height:5px;width:150px;background:#facc15;margin:13px auto 0 auto;border-radius:20px;"></div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+            <div style="border:2px solid #dbeafe;background:#f8fbff;border-radius:22px;padding:18px;font-size:12.5px;line-height:1.45;text-align:justify;white-space:pre-line;">
+              ${ruText}
+            </div>
+
+            <div style="border:2px solid #dbeafe;background:#f8fbff;border-radius:22px;padding:18px;font-size:12.5px;line-height:1.45;text-align:justify;white-space:pre-line;">
+              ${roText}
+            </div>
+          </div>
+
+          <div style="margin-top:24px;display:grid;grid-template-columns:1fr 240px;gap:26px;align-items:end;">
+            <div>
+              <div style="font-size:18px;font-weight:900;color:#111827;margin-bottom:10px;">Parent Signature / Semnătura</div>
+              <div style="height:118px;border:3px dashed #94a3b8;border-radius:22px;background:#fff;display:flex;align-items:center;justify-content:center;">
+                ${
+                  v.signature
+                    ? `<img src="${v.signature}" style="max-width:330px;max-height:96px;object-fit:contain;" />`
+                    : ""
+                }
+              </div>
+            </div>
+
+            <div style="background:#eff6ff;border:2px solid #dbeafe;border-radius:22px;padding:18px;font-size:14px;color:#475569;line-height:1.5;">
+              <b style="color:#111827;">Parent:</b><br/>
+              ${v.parentName || ""}<br/><br/>
+              <b style="color:#111827;">Date:</b><br/>
+              ${date}
+            </div>
+          </div>
+        </div>
+
+        <div style="position:absolute;left:0;right:0;bottom:0;background:#2563eb;color:white;padding:17px 42px;font-size:17px;text-align:center;font-weight:900;">
+          THANK YOU FOR CHOOSING ZIG ZAG KIDS PARK
+        </div>
+      </section>
+    </div>
+  `;
+
+  document.body.appendChild(html);
+
+  const canvas = await html2canvas(html, {
+    scale: 2,
+    useCORS: true,
+    backgroundColor: "#ffffff",
+  });
+
+  document.body.removeChild(html);
+
+  const imgData = canvas.toDataURL("image/png");
+  const pdf = new jsPDF("p", "mm", "a4");
+
+  const pageWidth = 210;
+  const pageHeight = 297;
+  const imgWidth = pageWidth;
+  const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+  let heightLeft = imgHeight;
+  let position = 0;
+
+  pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+  heightLeft -= pageHeight;
+
+  while (heightLeft > 0) {
+    position -= pageHeight;
     pdf.addPage();
+    pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+  }
 
-    pdf.setFontSize(16);
-    pdf.text("Declaration Text", 15, 20);
-
-    pdf.setFontSize(10);
-    const lines = pdf.splitTextToSize(v.declarationText || "", 180);
-    pdf.text(lines, 15, 32);
-
-    if (v.signature) {
-      pdf.addPage();
-      pdf.setFontSize(16);
-      pdf.text("Parent Signature", 15, 20);
-      pdf.addImage(v.signature, "PNG", 15, 35, 120, 45);
-    }
-
-    pdf.save(`${v.declarationNumber || "declaration"}.pdf`);
-  };
+  pdf.save(`${declarationNumber}-${v.parentName || "visitor"}.pdf`);
+};;
 
   const filteredVisitors = visitors.filter((v) => {
     const childrenText = (v.children || [])
