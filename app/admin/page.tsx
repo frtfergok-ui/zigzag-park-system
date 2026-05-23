@@ -970,41 +970,44 @@ const canViewStats =
         </div>
       </div>
 
-      <div className="flex gap-3 mb-5">
-        <button
-          onClick={() => setTab("visitors")}
-          className={`px-6 py-4 rounded-2xl text-2xl font-black ${
-            tab === "visitors"
-              ? "bg-blue-600 text-white"
-              : "bg-white text-black border"
-          }`}
-        >
-          Регистрации
-        </button>
+      <div className="flex flex-wrap gap-3 mb-5">
 
-        <button
-          onClick={() => setTab("families")}
-          className={`px-6 py-4 rounded-2xl text-2xl font-black ${
-            tab === "families"
-              ? "bg-green-600 text-white"
-              : "bg-white text-black border"
-          }`}
-        >
-          Family Pass
-          {canViewStats && (
   <button
-    onClick={() => setTab("stats")}
-    className={`px-6 py-4 rounded-2xl text-2xl font-black ${
-      tab === "stats"
-        ? "bg-purple-600 text-white"
-        : "bg-white text-black border"
+    onClick={() => setTab("visitors")}
+    className={`px-6 py-4 rounded-2xl text-2xl font-black transition ${
+      tab === "visitors"
+        ? "bg-blue-600 text-white shadow-lg"
+        : "bg-white text-black border-2"
     }`}
   >
-    Статистика
+    Регистрации
   </button>
-)}
-        </button>
-      </div>
+
+  <button
+    onClick={() => setTab("families")}
+    className={`px-6 py-4 rounded-2xl text-2xl font-black transition ${
+      tab === "families"
+        ? "bg-green-600 text-white shadow-lg"
+        : "bg-white text-black border-2"
+    }`}
+  >
+    Family Pass
+  </button>
+
+  {canViewStats && (
+    <button
+      onClick={() => setTab("stats")}
+      className={`px-6 py-4 rounded-2xl text-2xl font-black transition ${
+        tab === "stats"
+          ? "bg-purple-600 text-white shadow-lg"
+          : "bg-white text-black border-2"
+      }`}
+    >
+      Статистика
+    </button>
+  )}
+
+</div>
 
       {tab === "visitors" && (
         <>
