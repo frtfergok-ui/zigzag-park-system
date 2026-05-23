@@ -289,15 +289,32 @@ export default function Home() {
   };
 
   const resetForm = () => {
-    setParentName("");
-    setPhone("+373");
-    setEmail("");
-    setFamilyId("");
-    setChildren([{ name: "", age: "" }]);
-    setAgree(false);
-    clearSignature();
-    setStep(1);
-  };
+  setParentName("");
+  setPhone("+373");
+  setEmail("");
+  setFamilyId("");
+  setChildren([{ name: "", age: "" }]);
+  setAgree(false);
+  setHasSignature(false);
+  setMessage("");
+
+  const canvas = canvasRef.current;
+
+  if (canvas) {
+    const ctx = canvas.getContext("2d");
+
+    if (ctx) {
+      ctx.clearRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      );
+    }
+  }
+
+  setStep(1);
+};;
 
   const saveData = async () => {
     try {
