@@ -4,6 +4,15 @@ import { useEffect, useState } from "react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import * as XLSX from "xlsx";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+} from "recharts";
 
 import {
   collection,
@@ -25,7 +34,10 @@ import { db, app } from "@/firebase";
 type AdminRole = "owner" | "manager" | "cashier";
 
 export default function AdminPage() {
-  const [tab, setTab] = useState<"visitors" | "families">("visitors");
+  const [tab, setTab] =
+  useState<"visitors" | "families" | "stats">(
+    "visitors"
+  );
 
   const [visitors, setVisitors] = useState<any[]>([]);
   const [families, setFamilies] = useState<any[]>([]);
@@ -59,10 +71,12 @@ export default function AdminPage() {
 
   const canDelete = adminRole === "owner";
 
-  const canExport =
-    adminRole === "owner" ||
-    adminRole === "manager";
+const canExport =
+  adminRole === "owner" ||
+  adminRole === "manager";
 
+const canViewStats =
+  adminRole === "owner";
   useEffect(() => {
     const unsub = onAuthStateChanged(
       auth,
@@ -745,6 +759,33 @@ export default function AdminPage() {
       0
     );
 
+  const statsMap: any = {};
+
+  visitors.forEach((v) => {
+    if (!v.createdAt) return;
+
+    const d = v.createdAt?.toDate
+      ? v.createdAt.toDate()
+      : new Date(v.createdAt);
+
+    const key = d.toLocaleDateString();
+
+    if (!statsMap[key]) {
+      statsMap[key] = {
+        date: key,
+        visits: 0,
+        children: 0,
+      };
+    }
+
+    statsMap[key].visits += 1;
+    statsMap[key].children +=
+      v.children?.length || 0;
+  });
+
+  const statsData =
+    Object.values(statsMap);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center text-3xl font-bold text-black">
@@ -950,6 +991,18 @@ export default function AdminPage() {
           }`}
         >
           Family Pass
+          {canViewStats && (
+  <button
+    onClick={() => setTab("stats")}
+    className={`px-6 py-4 rounded-2xl text-2xl font-black ${
+      tab === "stats"
+        ? "bg-purple-600 text-white"
+        : "bg-white text-black border"
+    }`}
+  >
+    Статистика
+  </button>
+)}
         </button>
       </div>
 
@@ -1256,6 +1309,77 @@ export default function AdminPage() {
           </div>
         </>
       )}
+      {tab === "stats" && canViewStats && (
+  <div className="grid gap-5">
+
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+      <div className="bg-white rounded-2xl p-5 border shadow">
+        <p className="text-gray-500 text-xl">
+          Всего посещений
+        </p>
+
+        <p className="text-5xl font-black text-black">
+          {visitors.length}
+        </p>
+      </div>
+
+      <div className="bg-white rounded-2xl p-5 border shadow">
+        <p className="text-gray-500 text-xl">
+          Всего детей
+        </p>
+
+        <p className="text-5xl font-black text-black">
+          {totalChildren}
+        </p>
+      </div>
+
+      <div className="bg-white rounded-2xl p-5 border shadow">
+        <p className="text-gray-500 text-xl">
+          Family Pass
+        </p>
+
+        <p className="text-5xl font-black text-black">
+          {families.length}
+        </p>
+      </div>
+
+    </div>
+
+    <div className="bg-white rounded-3xl p-6 shadow border">
+      <h2 className="text-3xl font-black text-black mb-5">
+        График посещаемости
+      </h2>
+
+      <div style={{ width: "100%", height: 500 }}>
+        <ResponsiveContainer>
+          <BarChart data={statsData}>
+            <CartesianGrid strokeDasharray="3 3" />
+
+            <XAxis dataKey="date" />
+
+            <YAxis />
+
+            <Tooltip />
+
+            <Bar
+              dataKey="visits"
+              fill="#2563eb"
+              radius={[10, 10, 0, 0]}
+            />
+
+            <Bar
+              dataKey="children"
+              fill="#16a34a"
+              radius={[10, 10, 0, 0]}
+            />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+
+  </div>
+)}
     </div>
   );
 }
