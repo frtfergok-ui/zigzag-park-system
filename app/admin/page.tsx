@@ -113,7 +113,7 @@ const canViewStats =
   query(
     collection(db, "visitors"),
     orderBy("createdAt", "desc"),
-    limit(50)
+    limit(150)
   ),
       (snapshot) => {
         const data: any[] = [];
@@ -146,7 +146,7 @@ const canViewStats =
   query(
     collection(db, "families"),
     orderBy("updatedAt", "desc"),
-    limit(50)
+    limit(150)
   ),
       (snapshot) => {
         const data: any[] = [];
