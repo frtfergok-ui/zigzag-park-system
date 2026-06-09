@@ -21,6 +21,9 @@ import {
   getDoc,
   onSnapshot,
   updateDoc,
+  query,
+  orderBy,
+  limit,
 } from "firebase/firestore";
 
 import {
@@ -107,7 +110,11 @@ const canViewStats =
 
   useEffect(() => {
     const unsubVisitors = onSnapshot(
-      collection(db, "visitors"),
+  query(
+    collection(db, "visitors"),
+    orderBy("createdAt", "desc"),
+    limit(50)
+  ),
       (snapshot) => {
         const data: any[] = [];
 
@@ -136,7 +143,11 @@ const canViewStats =
     );
 
     const unsubFamilies = onSnapshot(
-      collection(db, "families"),
+  query(
+    collection(db, "families"),
+    orderBy("updatedAt", "desc"),
+    limit(50)
+  ),
       (snapshot) => {
         const data: any[] = [];
 
